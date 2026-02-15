@@ -3,87 +3,137 @@
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.04.0-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D)](https://www.nextflow.io/)
 
-Benchmark suite for validating [RustQC](https://github.com/ewels/RustQC) outputs against upstream bioinformatics tools.
+Validation suite for [RustQC](https://github.com/ewels/RustQC) -- comparing its outputs against the upstream bioinformatics tools it reimplements.
 
-## Overview
+## What this repo does
 
-RustQC reimplements common RNA-seq QC tools in Rust for performance. This repository provides automated correctness validation: it runs RustQC and compares its outputs against reference outputs from the original tools, using configurable comparison rules (exact match, numeric tolerance, line filtering).
+RustQC reimplements common RNA-seq QC tools in Rust. This repository:
 
-Built as an nf-core-style Nextflow pipeline with [nf-test](https://www.nf-test.com) for assertions.
-
-### Tools Compared (RNA suite)
-
-| RustQC output       | Upstream tool                                                            | Comparison method                   |
-| ------------------- | ------------------------------------------------------------------------ | ----------------------------------- |
-| dupRadar            | [dupRadar](https://bioconductor.org/packages/dupRadar/) (R/Bioconductor) | TSV match (exact + float tolerance) |
-| featureCounts       | [Subread featureCounts](http://subread.sourceforge.net/)                 | TSV match (skip comment headers)    |
-| bam_stat            | [RSeQC bam_stat.py](http://rseqc.sourceforge.net/)                       | Text match (skip log headers)       |
-| infer_experiment    | [RSeQC infer_experiment.py](http://rseqc.sourceforge.net/)               | Text match (skip info headers)      |
-| read_duplication    | [RSeQC read_duplication.py](http://rseqc.sourceforge.net/)               | TSV exact match                     |
-| read_distribution   | [RSeQC read_distribution.py](http://rseqc.sourceforge.net/)              | Text match (known minor diffs)      |
-| junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | Text + TSV match                    |
-| junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Text match (R script data)          |
-| inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | TSV exact match                     |
+1. **Generates reference outputs** from the original upstream tools (RSeQC, dupRadar, featureCounts)
+2. **Runs RustQC** on the same input data
+3. **Compares outputs** between RustQC and upstream tools, with per-tool tolerance rules
+4. **Tracks regressions** via nf-test snapshots -- if RustQC output changes, the snapshot test fails
 
 All upstream tools are run via standard [nf-core modules](https://nf-co.re/modules), so reference outputs match what users get from [nf-core/rnaseq](https://nf-co.re/rnaseq).
 
-## Architecture
+### Tools compared (RNA suite)
+
+| RustQC output       | Upstream tool                                                            | Comparison                         |
+| ------------------- | ------------------------------------------------------------------------ | ---------------------------------- |
+| dupRadar            | [dupRadar](https://bioconductor.org/packages/dupRadar/) (R/Bioconductor) | TSV match, float tolerance 1e-10   |
+| featureCounts       | [Subread featureCounts](http://subread.sourceforge.net/)                 | Column subset match (gene + count) |
+| bam_stat            | [RSeQC bam_stat.py](http://rseqc.sourceforge.net/)                       | Text match, skip log headers       |
+| infer_experiment    | [RSeQC infer_experiment.py](http://rseqc.sourceforge.net/)               | Text match, skip info headers      |
+| read_duplication    | [RSeQC read_duplication.py](http://rseqc.sourceforge.net/)               | TSV exact match                    |
+| read_distribution   | [RSeQC read_distribution.py](http://rseqc.sourceforge.net/)              | TSV match, 0.5 relative tolerance  |
+| junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | Row-sorted TSV + BED comparison    |
+| junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Structural check (stochastic tool) |
+| inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | TSV match, 0.1 relative tolerance  |
+
+## How it works
+
+There are two layers of tests, both using [nf-test](https://www.nf-test.com):
+
+### Upstream tests (`tests/rna/upstream/`)
+
+Each test runs one nf-core module (e.g. `RSEQC_BAMSTAT`) against the small test dataset and snapshots the output. This captures what the upstream tool produces so we can detect if _upstream_ changes.
+
+### RustQC tests (`tests/rna/rustqc/`)
+
+Each test runs the `RUSTQC_RNA` process and does two things:
+
+1. **Cross-comparison** -- uses `CompareUtils` to compare RustQC output against the reference files in `snapshots/rna/small/`, with per-tool tolerance rules
+2. **Regression snapshot** -- calls `snapshot()` on the RustQC output, so any future change to RustQC output is caught
+
+RustQC output files are found by **suffix pattern** (e.g. `endsWith('bam_stat.txt')`), making the tests resilient to output directory structure changes.
+
+## Repository layout
 
 ```
-Suite-based organization (extensible for future RustQC commands):
-
-test-data/rna/small/     -- Small test BAM + annotations (in repo, ~7MB)
-snapshots/rna/small/     -- Reference outputs from upstream tools (in repo)
-tests/rna/               -- nf-test files comparing RustQC vs snapshots
-tests/lib/               -- Shared Groovy comparison utilities
-modules/local/           -- Custom RUSTQC_RNA process
-modules/nf-core/         -- 12 upstream tool modules (installed via nf-core)
-conf/rna_test.config     -- Small dataset parameters
-conf/rna_test_full.config -- Large dataset parameters (S3)
+test-data/rna/small/          Small test BAM + annotations (~7 MB, committed)
+snapshots/rna/small/          Reference outputs from upstream tools (committed)
+  dupradar/                     dupMatrix.txt, intercept_slope.txt
+  featurecounts/                featureCounts.tsv, featureCounts.tsv.summary
+  rseqc/                        bam_stat.txt, infer_experiment.txt, ...
+results/rna/small/            RustQC example outputs (committed, text only)
+tests/
+  lib/CompareUtils.groovy     Shared comparison utilities (tsvMatch, textMatch, etc.)
+  rna/upstream/               9 nf-test files, one per upstream tool
+  rna/rustqc/                 9 nf-test files, one per RustQC tool output
+  rna/pipeline.nf.test        Smoke test for the full workflow
+modules/local/rustqc_rna.nf  RustQC Nextflow process definition
+modules/nf-core/              12 upstream tool modules (dupradar, rseqc/*, subread, samtools)
+workflows/rustqc-benchmarks.nf  Main pipeline workflow
+conf/
+  rna_test.config             Small dataset parameters
+  rna_test_full.config        Large dataset parameters (S3, incomplete)
+  modules.config              Per-module publishDir and ext.args settings
 ```
 
-## Quick Start
-
-### Prerequisites
+## Prerequisites
 
 - [Nextflow](https://www.nextflow.io/) >= 25.04.0
-- [nf-test](https://www.nf-test.com) >= 0.9.0
+- [nf-test](https://www.nf-test.com) >= 0.9.2
 - Docker (or Singularity/Apptainer)
 
-### Run correctness tests (small dataset)
+## Running the tests
+
+The `nf-test.config` already sets the `test,docker` profiles, so no `--profile` flag is needed.
+
+### Run all RNA tests
 
 ```bash
-# All RNA tools
-nf-test test --tag rna --profile docker
-
-# Single tool
-nf-test test --tag bam_stat --profile docker
-
-# With verbose output
-nf-test test --tag rna --profile docker --verbose
+nf-test test tests/rna/upstream/ tests/rna/rustqc/
 ```
 
-### Run the pipeline directly
+### Run by tag
+
+```bash
+# All upstream reference tests
+nf-test test --tag upstream
+
+# All RustQC comparison tests
+nf-test test --tag rustqc
+
+# A single tool (runs both upstream + rustqc for that tool)
+nf-test test --tag bam_stat
+
+# Everything tagged rna (upstream + rustqc + pipeline)
+nf-test test --tag rna
+```
+
+### Run with verbose output
+
+```bash
+nf-test test --tag rna --verbose
+```
+
+### Available tags
+
+Every test has multiple tags so you can slice in different ways:
+
+| Tag                                          | What it selects                              |
+| -------------------------------------------- | -------------------------------------------- |
+| `upstream`                                   | All 9 upstream nf-core module tests          |
+| `rustqc`                                     | All 9 RustQC comparison tests                |
+| `rna`                                        | All RNA tests (upstream + rustqc + pipeline) |
+| `small`                                      | Small dataset tests                          |
+| `bam_stat`, `dupradar`, `featurecounts`, ... | Both upstream + rustqc tests for that tool   |
+| `pipeline`                                   | Pipeline-level smoke test                    |
+
+## Running the pipeline directly
+
+The Nextflow pipeline can also be run standalone (e.g. on Seqera Platform for benchmarking):
 
 ```bash
 # RustQC only (default)
 nextflow run main.nf -profile rna_test,docker
 
-# Upstream tools only (to regenerate reference snapshots)
+# Upstream tools only
 nextflow run main.nf -profile rna_test,docker --run_upstream --run_rustqc false
 
-# Both (full comparison)
+# Both
 nextflow run main.nf -profile rna_test,docker --run_upstream
-```
-
-### Large dataset (S3)
-
-```bash
-# Tests
-nf-test test --tag large --profile docker
-
-# Pipeline
-nextflow run main.nf -profile rna_test_full,docker
 ```
 
 ### Use a local RustQC binary
@@ -94,57 +144,131 @@ nextflow run main.nf -profile rna_test,docker \
     --rustqc_binary /path/to/rustqc
 ```
 
-## Pipeline Parameters
+### Key parameters
 
-| Parameter             | Default                       | Description                                    |
-| --------------------- | ----------------------------- | ---------------------------------------------- |
-| `--bam`               | (from profile)                | Input BAM file                                 |
-| `--bai`               | (from profile)                | BAM index file                                 |
-| `--gtf`               | (from profile)                | GTF annotation                                 |
-| `--bed`               | (from profile)                | BED gene model                                 |
-| `--sample_id`         | `test`                        | Sample identifier                              |
-| `--paired`            | `true`                        | Paired-end data                                |
-| `--strandedness`      | `unstranded`                  | Library strandedness                           |
-| `--run_rustqc`        | `true`                        | Run RustQC                                     |
-| `--run_upstream`      | `false`                       | Run upstream reference tools                   |
-| `--rustqc_image`      | `ghcr.io/ewels/rustqc:latest` | RustQC Docker image                            |
-| `--rustqc_binary`     | `null`                        | Path to local RustQC binary (overrides Docker) |
-| `--skip_dup_check`    | `false`                       | Skip duplication check in RustQC               |
-| `--biotype_attribute` | `null`                        | GTF biotype attribute name                     |
-| `--outdir`            | `results`                     | Output directory                               |
+| Parameter         | Default                    | Description                                  |
+| ----------------- | -------------------------- | -------------------------------------------- |
+| `--run_rustqc`    | `true`                     | Run RustQC                                   |
+| `--run_upstream`  | `false`                    | Run upstream reference tools                 |
+| `--rustqc_image`  | `ghcr.io/ewels/rustqc:dev` | RustQC Docker image                          |
+| `--rustqc_binary` | `null`                     | Local RustQC binary (overrides Docker)       |
+| `--bam` / `--bai` | _(from profile)_           | Input BAM and index                          |
+| `--gtf` / `--bed` | _(from profile)_           | GTF annotation and BED gene model            |
+| `--sample_id`     | `test`                     | Sample identifier (used in output filenames) |
+| `--paired`        | `true`                     | Paired-end data                              |
+| `--strandedness`  | `unstranded`               | Library strandedness                         |
+| `--outdir`        | `results`                  | Output directory                             |
 
-## Managing Snapshots
+## Updating snapshots
 
-Reference snapshots in `snapshots/` are outputs from upstream tools, committed to git. They rarely need updating.
+### After an intentional RustQC change
 
-### Regenerate upstream snapshots
+If RustQC output intentionally changes, the regression snapshots need updating:
 
 ```bash
-# Run upstream tools
-nextflow run main.nf -profile rna_test,docker --run_upstream --run_rustqc false --outdir reference_outputs
+# Re-run RustQC tests and update their .snap files
+nf-test test --tag rustqc --update-snapshot
 
-# Review the outputs, then copy to snapshots/
-cp -r reference_outputs/dupradar/gene_data/* snapshots/rna/small/dupradar/
-cp -r reference_outputs/featurecounts/* snapshots/rna/small/featurecounts/
-cp -r reference_outputs/rseqc/*/*.txt snapshots/rna/small/rseqc/
-# ... etc
+# Review the diff
+git diff tests/rna/rustqc/*.nf.test.snap
+
+# If the changes look correct, also update the committed example outputs
+# (find the output dir from the nf-test work directory)
+cp .nf-test/tests/<hash>/work/<hash>/output/*.txt results/rna/small/
+cp .nf-test/tests/<hash>/work/<hash>/output/*.tsv results/rna/small/
+cp .nf-test/tests/<hash>/work/<hash>/output/*.xls results/rna/small/
+cp .nf-test/tests/<hash>/work/<hash>/output/*.r results/rna/small/
 
 # Commit
-git add snapshots/ && git commit -m "Regenerate upstream reference snapshots"
+git add tests/rna/rustqc/*.nf.test.snap results/rna/small/
+git commit -m "Update RustQC snapshots for <reason>"
 ```
 
-## Adding a New Benchmark Suite
+### After an upstream tool update
 
-This repo is organized by RustQC subcommand. To add a new suite (e.g., `rustqc dna`):
+If nf-core modules are updated and upstream tool output changes:
+
+```bash
+# Re-run upstream tests and update their .snap files
+nf-test test --tag upstream --update-snapshot
+
+# Copy fresh upstream outputs to the reference snapshots directory
+# (the rustqc tests read files from snapshots/rna/small/ for comparison)
+
+# dupradar (note: uses test_ prefix)
+cp .nf-test/tests/<hash>/work/<hash>/test_dupMatrix.txt snapshots/rna/small/dupradar/dupMatrix.txt
+cp .nf-test/tests/<hash>/work/<hash>/test_intercept_slope.txt snapshots/rna/small/dupradar/intercept_slope.txt
+
+# featurecounts
+cp .nf-test/tests/<hash>/work/<hash>/test.featureCounts.tsv snapshots/rna/small/featurecounts/
+cp .nf-test/tests/<hash>/work/<hash>/test.featureCounts.tsv.summary snapshots/rna/small/featurecounts/
+
+# rseqc (strip test. prefix -> tool name prefix)
+cp .nf-test/tests/<hash>/work/<hash>/test.bam_stat.txt snapshots/rna/small/rseqc/bam_stat.txt
+# ... etc for each tool
+
+# Re-run rustqc tests to check if comparisons still hold
+nf-test test --tag rustqc
+
+# Commit
+git add snapshots/ tests/rna/upstream/*.nf.test.snap
+git commit -m "Regenerate upstream reference snapshots"
+```
+
+## CompareUtils reference
+
+The shared comparison library (`tests/lib/CompareUtils.groovy`) provides:
+
+### `CompareUtils.tsvMatch(actual, expected, opts)`
+
+Line-by-line TSV comparison with configurable tolerance.
+
+```groovy
+CompareUtils.tsvMatch(
+    path(actualFile).readLines(),
+    path(expectedFile).readLines(),
+    [
+        tolerance: 1e-10,        // absolute numeric tolerance
+        relTolerance: 0.02,      // relative numeric tolerance (passes if EITHER is met)
+        skipPrefixes: ['#'],     // ignore lines starting with these
+        skipColumns: [1,2] as Set, // ignore specific columns
+        delimiter: '\t',         // column delimiter (default: tab)
+    ]
+)
+```
+
+### `CompareUtils.textMatch(actual, expected, ignorePrefixes)`
+
+Exact line-by-line text comparison, filtering lines by prefix.
+
+```groovy
+CompareUtils.textMatch(
+    path(actualFile).readLines(),
+    path(expectedFile).readLines(),
+    ['Load BAM', 'processing']  // ignore lines starting with these
+)
+```
+
+### `CompareUtils.fileMinSize(file, minBytes)`
+
+Asserts a file exists and meets a minimum size. Useful for plot files.
+
+```groovy
+CompareUtils.fileMinSize(path(plotFile), 1000)
+```
+
+## Adding a new benchmark suite
+
+This repo is organized by RustQC subcommand. To add a new suite (e.g. `rustqc dna`):
 
 1. Create `modules/local/rustqc_dna.nf`
 2. Install relevant nf-core modules (`nf-core modules install ...`)
-3. Create `workflows/dna.nf` or extend the main workflow
-4. Add `conf/dna_test.config` and `conf/dna_test_full.config`
-5. Add test data to `test-data/dna/small/`
-6. Generate upstream snapshots in `snapshots/dna/small/`
-7. Write nf-test files in `tests/dna/`
-8. Add `withName` blocks to `conf/modules.config`
+3. Add test data to `test-data/dna/small/`
+4. Add `conf/dna_test.config` with input paths
+5. Write upstream tests in `tests/dna/upstream/`
+6. Run upstream tests, copy outputs to `snapshots/dna/small/`
+7. Write RustQC comparison tests in `tests/dna/rustqc/`
+8. Extend the workflow or create `workflows/dna.nf`
 
 Nothing in the RNA suite is touched.
 

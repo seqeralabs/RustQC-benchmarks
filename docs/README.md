@@ -1,8 +1,6 @@
-# ewels/rustqc-benchmarks: Documentation
+# RustQC Benchmarks: Documentation
 
-The ewels/rustqc-benchmarks documentation is split into the following pages:
+See the main [README](../README.md) for an overview.
 
-- [Usage](usage.md)
-  - An overview of how the pipeline works, how to run it and a description of all of the different command-line flags.
-- [Output](output.md)
-  - An overview of the different results produced by the pipeline and how to interpret them.
+- [Usage](usage.md) -- Running the pipeline and tests
+- [Output](output.md) -- Output files and directory structure
