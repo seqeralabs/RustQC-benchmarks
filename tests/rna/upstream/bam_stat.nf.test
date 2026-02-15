@@ -1,0 +1,37 @@
+nextflow_process {
+
+    name "Test upstream RSeQC bam_stat"
+    script "../../../modules/nf-core/rseqc/bamstat/main.nf"
+    process "RSEQC_BAMSTAT"
+
+    tag "upstream"
+    tag "rna"
+    tag "bam_stat"
+    tag "small"
+
+    test("small dataset - upstream bam_stat") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def txt = path(process.out.txt[0][1])
+
+            // Snapshot the text content for regression tracking
+            snapshot(
+                txt.readLines()
+            ).match("bam_stat_output")
+        }
+    }
+}

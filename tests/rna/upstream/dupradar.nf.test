@@ -1,0 +1,49 @@
+nextflow_process {
+
+    name "Test upstream dupRadar"
+    script "../../../modules/nf-core/dupradar/main.nf"
+    process "DUPRADAR"
+
+    tag "upstream"
+    tag "rna"
+    tag "dupradar"
+    tag "small"
+
+    test("small dataset - upstream dupRadar") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'test' ],
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def dupMatrix = process.out.dupmatrix[0][1]
+            def interceptSlope = process.out.intercept_slope[0][1]
+            assert path(dupMatrix).exists()
+            assert path(interceptSlope).exists()
+
+            // Check plot files exist
+            assert path(process.out.scatter2d[0][1]).exists()
+            assert path(process.out.boxplot[0][1]).exists()
+            assert path(process.out.hist[0][1]).exists()
+
+            // Snapshot data files
+            snapshot(
+                "dupMatrix":      path(dupMatrix).readLines(),
+                "intercept_slope": path(interceptSlope).readLines()
+            ).match("dupradar_output")
+        }
+    }
+}

@@ -1,0 +1,41 @@
+nextflow_process {
+
+    name "Test upstream Subread featureCounts"
+    script "../../../modules/nf-core/subread/featurecounts/main.nf"
+    process "SUBREAD_FEATURECOUNTS"
+
+    tag "upstream"
+    tag "rna"
+    tag "featurecounts"
+    tag "small"
+
+    test("small dataset - upstream featureCounts") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def counts  = process.out.counts[0][1]
+            def summary = process.out.summary[0][1]
+            assert path(counts).exists()
+            assert path(summary).exists()
+
+            // Snapshot content — skip comment header lines starting with #
+            snapshot(
+                "counts":  path(counts).readLines().findAll { !it.startsWith('#') },
+                "summary": path(summary).readLines()
+            ).match("featurecounts_output")
+        }
+    }
+}

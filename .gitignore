@@ -1,7 +1,13 @@
 # Nextflow
 .nextflow*
 work/
-results/
+results/*
+!results/rna/
+results/rna/*
+!results/rna/small/
+results/rna/small/*.png
+results/rna/small/*.svg
+results/rna/small/*.pdf
 results_*/
 reference_outputs/
 null/

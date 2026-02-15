@@ -1,0 +1,38 @@
+nextflow_process {
+
+    name "Test upstream RSeQC infer_experiment"
+    script "../../../modules/nf-core/rseqc/inferexperiment/main.nf"
+    process "RSEQC_INFEREXPERIMENT"
+
+    tag "upstream"
+    tag "rna"
+    tag "infer_experiment"
+    tag "small"
+
+    test("small dataset - upstream infer_experiment") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def txt = process.out.txt[0][1]
+            assert path(txt).exists()
+
+            snapshot(
+                path(txt).readLines()
+            ).match("infer_experiment_output")
+        }
+    }
+}

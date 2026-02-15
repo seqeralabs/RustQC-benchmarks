@@ -1,0 +1,48 @@
+nextflow_process {
+
+    name "Test upstream RSeQC junction_annotation"
+    script "../../../modules/nf-core/rseqc/junctionannotation/main.nf"
+    process "RSEQC_JUNCTIONANNOTATION"
+
+    tag "upstream"
+    tag "rna"
+    tag "junction_annotation"
+    tag "small"
+
+    test("small dataset - upstream junction_annotation") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def xls = process.out.xls[0][1]
+            def log = process.out.log[0][1]
+            assert path(xls).exists()
+            assert path(log).exists()
+
+            // Snapshot text/data outputs; BED and PDF are optional
+            def snapData = [
+                "xls": path(xls).readLines(),
+                "log": path(log).readLines()
+            ]
+
+            if (process.out.bed && process.out.bed.size() > 0) {
+                snapData["bed"] = path(process.out.bed[0][1]).readLines()
+            }
+
+            snapshot(snapData).match("junction_annotation_output")
+        }
+    }
+}

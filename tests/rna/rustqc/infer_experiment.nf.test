@@ -1,9 +1,10 @@
 nextflow_process {
 
     name "Test RUSTQC infer_experiment output"
-    script "../../modules/local/rustqc_rna.nf"
+    script "../../../modules/local/rustqc_rna.nf"
     process "RUSTQC_RNA"
 
+    tag "rustqc"
     tag "rna"
     tag "infer_experiment"
     tag "small"
@@ -29,18 +30,21 @@ nextflow_process {
         then {
             assert process.success
 
-            def actualFile = process.out.results[0][1].flatten().find {
-                it.toString().contains('infer_experiment') && it.toString().endsWith('.txt')
-            }
-            assert actualFile : "infer_experiment output file not found"
+            def allFiles = process.out.results[0][1].flatten()
+            def actualFile = allFiles.find { it.toString().endsWith('infer_experiment.txt') }
+            assert actualFile : "infer_experiment.txt not found in: ${allFiles}"
 
-            def expectedFile = "${projectDir}/snapshots/rna/small/rseqc/infer_experiment.txt"
-
+            // Compare against upstream reference
             CompareUtils.textMatch(
                 path(actualFile).readLines(),
-                path(expectedFile).readLines(),
+                path("${projectDir}/snapshots/rna/small/rseqc/infer_experiment.txt").readLines(),
                 ['This is']
             )
+
+            // Snapshot for regression tracking
+            snapshot(
+                path(actualFile).readLines()
+            ).match("infer_experiment_output")
         }
     }
 }

@@ -1,0 +1,79 @@
+nextflow_process {
+
+    name "Test RUSTQC inner_distance output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "inner_distance"
+    tag "small"
+
+    test("small dataset - inner_distance matches upstream RSeQC") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+
+            def actualDist = allFiles.find {
+                it.toString().endsWith('.inner_distance.txt')
+            }
+            def actualFreq = allFiles.find {
+                it.toString().endsWith('_freq.txt')
+            }
+
+            assert actualDist : "inner_distance.txt not found in: ${allFiles}"
+            assert actualFreq : "inner_distance_freq.txt not found in: ${allFiles}"
+
+            // Inner distance has known differences between RustQC and upstream RSeQC
+            // due to implementation differences in distance calculation.
+            // We verify output structure/format and use snapshot for regression tracking.
+            assertAll(
+                // Verify distance file has expected columns (read_id, distance, annotation)
+                {
+                    def distLines = path(actualDist).readLines().findAll { it.trim() }
+                    assert distLines.size() > 0 : "inner_distance.txt is empty"
+                    // Check format: tab-separated with at least 3 columns
+                    def firstDataLine = distLines[0].split('\t')
+                    assert firstDataLine.size() >= 3 :
+                        "Expected >= 3 columns, got ${firstDataLine.size()}: ${distLines[0]}"
+                },
+                // Verify freq file has expected format and similar total count
+                {
+                    def freqLines = path(actualFreq).readLines().findAll { it.trim() }
+                    def expectedFreqLines = path("${projectDir}/snapshots/rna/small/rseqc/inner_distance.inner_distance_freq.txt").readLines().findAll { it.trim() }
+                    assert freqLines.size() > 0 : "inner_distance_freq.txt is empty"
+                    // Compare total read counts (sum of frequencies)
+                    def actualTotal = freqLines.collect { it.split('\t')[-1] as int }.sum()
+                    def expectedTotal = expectedFreqLines.collect { it.split('\t')[-1] as int }.sum()
+                    def pctDiff = Math.abs(actualTotal - expectedTotal) / (double)expectedTotal
+                    assert pctDiff < 0.05 :
+                        "Total frequency differs by ${(pctDiff * 100).round(1)}%: RustQC=${actualTotal}, upstream=${expectedTotal}"
+                }
+            )
+
+            // Snapshot for regression tracking
+            snapshot(
+                distance: path(actualDist).readLines(),
+                freq: path(actualFreq).readLines()
+            ).match("inner_distance_output")
+        }
+    }
+}

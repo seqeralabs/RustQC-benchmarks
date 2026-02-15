@@ -1,0 +1,38 @@
+nextflow_process {
+
+    name "Test upstream RSeQC read_distribution"
+    script "../../../modules/nf-core/rseqc/readdistribution/main.nf"
+    process "RSEQC_READDISTRIBUTION"
+
+    tag "upstream"
+    tag "rna"
+    tag "read_distribution"
+    tag "small"
+
+    test("small dataset - upstream read_distribution") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def txt = process.out.txt[0][1]
+            assert path(txt).exists()
+
+            snapshot(
+                path(txt).readLines()
+            ).match("read_distribution_output")
+        }
+    }
+}

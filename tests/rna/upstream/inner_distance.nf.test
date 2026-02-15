@@ -1,0 +1,45 @@
+nextflow_process {
+
+    name "Test upstream RSeQC inner_distance"
+    script "../../../modules/nf-core/rseqc/innerdistance/main.nf"
+    process "RSEQC_INNERDISTANCE"
+
+    tag "upstream"
+    tag "rna"
+    tag "inner_distance"
+    tag "small"
+
+    test("small dataset - upstream inner_distance") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def distFiles = process.out.distance
+            def freqFiles = process.out.freq
+
+            // inner_distance outputs are optional (only for paired-end)
+            assert distFiles.size() > 0 : "No inner_distance output files"
+
+            def dist = distFiles[0][1]
+            def freq = freqFiles[0][1]
+
+            snapshot(
+                "distance": path(dist).readLines(),
+                "freq":     path(freq).readLines()
+            ).match("inner_distance_output")
+        }
+    }
+}

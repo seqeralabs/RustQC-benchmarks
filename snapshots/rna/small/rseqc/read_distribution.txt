@@ -1,6 +1,3 @@
-processing /data/input.bed ... Done
-processing /data/input.bam ... Finished
-
 Total Reads                   43476
 Total Tags                    68660
 Total Assigned Tags           66693

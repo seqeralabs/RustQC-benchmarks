@@ -1,0 +1,18 @@
+{
+    "junction_saturation_output": {
+        "content": [
+            {
+                "line_count": 12,
+                "has_pdf_line": true,
+                "has_known_junctions": true,
+                "has_all_junctions": true,
+                "has_novel_junctions": true
+            }
+        ],
+        "timestamp": "2026-02-15T23:41:23.075056",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.01.1"
+        }
+    }
+}

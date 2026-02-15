@@ -1,0 +1,12 @@
+# id: 'biotype_counts_rrna'
+# plot_type: 'generalstats'
+# pconfig:
+#     percent_rRNA:
+#         title: '% rRNA'
+#         namespace: 'Biotype Counts'
+#         description: 'Percentage of reads assigned to rRNA genes'
+#         max: 100
+#         min: 0
+#         format: '{:.2f}'
+Sample	percent_rRNA
+test	0.0000

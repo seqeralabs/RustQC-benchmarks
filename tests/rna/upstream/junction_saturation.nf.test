@@ -1,0 +1,53 @@
+nextflow_process {
+
+    name "Test upstream RSeQC junction_saturation"
+    script "../../../modules/nf-core/rseqc/junctionsaturation/main.nf"
+    process "RSEQC_JUNCTIONSATURATION"
+
+    tag "upstream"
+    tag "rna"
+    tag "junction_saturation"
+    tag "small"
+
+    test("small dataset - upstream junction_saturation") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rscript = process.out.rscript[0][1]
+            assert path(rscript).exists()
+
+            // junction_saturation.py uses random sampling, so exact values
+            // change between runs. Verify structure instead of exact content.
+            def lines = path(rscript).readLines()
+            assert lines.size() >= 10 && lines.size() <= 15 : "Expected 10-15 lines in R script, got ${lines.size()}"
+            assert lines[0].startsWith("pdf(")
+            assert lines[1].startsWith("x=c(")
+            assert lines[2].startsWith("y=c(")  // known junctions
+            assert lines[3].startsWith("z=c(")  // all junctions
+            assert lines[4].startsWith("w=c(")  // novel junctions
+
+            // Snapshot for reference (will need --update-snapshot after each run)
+            snapshot(
+                "line_count": lines.size(),
+                "has_pdf_line": lines[0].contains("junctionSaturation"),
+                "has_known_junctions": lines[2].startsWith("y=c("),
+                "has_all_junctions": lines[3].startsWith("z=c("),
+                "has_novel_junctions": lines[4].startsWith("w=c("),
+            ).match("junction_saturation_output")
+        }
+    }
+}

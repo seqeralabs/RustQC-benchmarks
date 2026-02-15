@@ -1,0 +1,112 @@
+nextflow_process {
+
+    name "Test RUSTQC featureCounts output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "featurecounts"
+    tag "small"
+
+    test("small dataset - featureCounts matches upstream Subread") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+
+            def actualCounts = allFiles.find {
+                it.toString().endsWith('.tsv') && !it.toString().endsWith('.summary')
+            }
+            def actualSummary = allFiles.find {
+                it.toString().endsWith('.tsv.summary') || it.toString().endsWith('.summary')
+            }
+
+            assert actualCounts : "featureCounts TSV not found in: ${allFiles}"
+
+            // RustQC produces simplified 2-column (gene + count) vs upstream 7-column format.
+            // Compare gene IDs and counts by extracting first and last columns from upstream.
+            def actualLines = path(actualCounts).readLines().findAll { !it.startsWith('#') && it.trim() }
+            def expectedLines = path("${projectDir}/snapshots/rna/small/featurecounts/featureCounts.tsv").readLines().findAll { !it.startsWith('#') && it.trim() }
+
+            assertAll(
+                // Same number of genes
+                {
+                    assert actualLines.size() == expectedLines.size() :
+                        "Line count mismatch: RustQC=${actualLines.size()}, upstream=${expectedLines.size()}"
+                },
+                // Compare gene counts (first column = gene ID, last column = count in both formats)
+                {
+                    def actualMap = [:]
+                    actualLines.drop(1).each { line ->
+                        def cols = line.split('\t')
+                        actualMap[cols[0]] = cols[-1]
+                    }
+                    def expectedMap = [:]
+                    expectedLines.drop(1).each { line ->
+                        def cols = line.split('\t')
+                        expectedMap[cols[0]] = cols[-1]
+                    }
+                    def mismatches = []
+                    expectedMap.each { gene, count ->
+                        if (actualMap[gene] != count) {
+                            mismatches << "Gene ${gene}: RustQC=${actualMap[gene]}, upstream=${count}"
+                        }
+                    }
+                    assert mismatches.size() == 0 :
+                        "featureCounts count mismatches (${mismatches.size()}):\n${mismatches.take(20).join('\n')}"
+                },
+                // Summary: check it exists, compare assigned reads
+                {
+                    if (actualSummary) {
+                        def actualSumLines = path(actualSummary).readLines()
+                        def expectedSumLines = path("${projectDir}/snapshots/rna/small/featurecounts/featureCounts.tsv.summary").readLines()
+                        // Compare just the Status + count columns (first and last in each format)
+                        def actualSumMap = [:]
+                        actualSumLines.drop(1).each { line ->
+                            def cols = line.split('\t')
+                            if (cols.size() >= 2) actualSumMap[cols[0]] = cols[-1]
+                        }
+                        def expectedSumMap = [:]
+                        expectedSumLines.drop(1).each { line ->
+                            def cols = line.split('\t')
+                            if (cols.size() >= 2) expectedSumMap[cols[0]] = cols[-1]
+                        }
+                        def sumMismatches = []
+                        expectedSumMap.each { status, count ->
+                            if (actualSumMap[status] != count) {
+                                sumMismatches << "${status}: RustQC=${actualSumMap[status]}, upstream=${count}"
+                            }
+                        }
+                        assert sumMismatches.size() == 0 :
+                            "Summary mismatches:\n${sumMismatches.join('\n')}"
+                    }
+                }
+            )
+
+            // Snapshot for regression tracking
+            def snapData = [counts: path(actualCounts).readLines().findAll { !it.startsWith('#') }]
+            if (actualSummary) {
+                snapData.summary = path(actualSummary).readLines()
+            }
+            snapshot(snapData).match("featurecounts_output")
+        }
+    }
+}

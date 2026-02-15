@@ -1,6 +1,3 @@
-Reading reference bed file:  chr6.bed  ...  Done
-Load BAM file ...  Done
-
 ===================================================================
 Total splicing  Events:	23448
 Known Splicing Events:	22625
@@ -14,5 +11,3 @@ Partial Novel Splicing Junctions:	88
 Novel Splicing Junctions:	191
 
 ===================================================================
-Create BED file ...
-Create Interact file ...

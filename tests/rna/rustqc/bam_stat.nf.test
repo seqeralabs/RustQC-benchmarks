@@ -1,14 +1,15 @@
 nextflow_process {
 
     name "Test RUSTQC bam_stat output"
-    script "../../modules/local/rustqc_rna.nf"
+    script "../../../modules/local/rustqc_rna.nf"
     process "RUSTQC_RNA"
 
+    tag "rustqc"
     tag "rna"
     tag "bam_stat"
     tag "small"
 
-    test("small dataset - bam_stat text report matches upstream RSeQC") {
+    test("small dataset - bam_stat matches upstream RSeQC") {
 
         when {
             params {
@@ -29,20 +30,21 @@ nextflow_process {
         then {
             assert process.success
 
-            // Find the bam_stat output
-            def actualFile = process.out.results[0][1].flatten().find {
-                it.toString().contains('bam_stat') && it.toString().endsWith('.txt')
-            }
-            assert actualFile : "bam_stat output file not found"
+            def allFiles = process.out.results[0][1].flatten()
+            def actualFile = allFiles.find { it.toString().endsWith('bam_stat.txt') }
+            assert actualFile : "bam_stat.txt not found in: ${allFiles}"
 
-            def expectedFile = "${projectDir}/snapshots/rna/small/rseqc/bam_stat.txt"
-
-            // Text match, ignoring log/processing header lines
+            // Compare against upstream reference
             CompareUtils.textMatch(
                 path(actualFile).readLines(),
-                path(expectedFile).readLines(),
+                path("${projectDir}/snapshots/rna/small/rseqc/bam_stat.txt").readLines(),
                 ['Load BAM', 'processing']
             )
+
+            // Snapshot for regression tracking
+            snapshot(
+                path(actualFile).readLines()
+            ).match("bam_stat_output")
         }
     }
 }

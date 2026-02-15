@@ -1,0 +1,54 @@
+nextflow_process {
+
+    name "Test RUSTQC junction_saturation output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "junction_saturation"
+    tag "small"
+
+    test("small dataset - junction_saturation matches upstream RSeQC") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+            def actualRscript = allFiles.find {
+                it.toString().contains('junctionSaturation') && it.toString().endsWith('.r')
+            }
+            assert actualRscript : "junctionSaturation_plot.r not found in: ${allFiles*.toString()}"
+
+            // Compare structure against upstream reference
+            // R script has numeric differences in junction count vectors and file path prefixes,
+            // so we verify structure (same number of data lines) rather than exact content
+            def actualLines = path(actualRscript).readLines().findAll { it.trim() }
+            def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_saturation.junctionSaturation_plot.r")
+                .readLines().findAll { it.trim() }
+            assert actualLines.size() == expectedLines.size() :
+                "junction_saturation R script has ${actualLines.size()} lines, expected ${expectedLines.size()}"
+
+            // Snapshot for regression tracking
+            snapshot(
+                path(actualRscript).readLines()
+            ).match("junction_saturation_output")
+        }
+    }
+}

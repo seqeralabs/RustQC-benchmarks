@@ -1,0 +1,41 @@
+nextflow_process {
+
+    name "Test upstream RSeQC read_duplication"
+    script "../../../modules/nf-core/rseqc/readduplication/main.nf"
+    process "RSEQC_READDUPLICATION"
+
+    tag "upstream"
+    tag "rna"
+    tag "read_duplication"
+    tag "small"
+
+    test("small dataset - upstream read_duplication") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def posXls = process.out.pos_xls[0][1]
+            def seqXls = process.out.seq_xls[0][1]
+            assert path(posXls).exists()
+            assert path(seqXls).exists()
+
+            // Snapshot both XLS data files
+            snapshot(
+                "pos": path(posXls).readLines(),
+                "seq": path(seqXls).readLines()
+            ).match("read_duplication_output")
+        }
+    }
+}
