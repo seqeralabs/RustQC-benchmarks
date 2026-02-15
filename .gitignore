@@ -1,0 +1,35 @@
+# Nextflow
+.nextflow*
+work/
+results/
+reference_outputs/
+null/
+
+# nf-test
+.nf-test/
+
+# Planning TODOs (local only)
+TODO-*.md
+
+# Large test data (downloaded on demand)
+test-data/rna/large/
+test-data/dna/
+
+# BAM files are large — only allow the small test dataset
+*.bam
+*.bam.bai
+!test-data/rna/small/test.bam
+!test-data/rna/small/test.bam.bai
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.pyc
+
+# Misc
+data/
+testing/
+testing*
+.nf-test.log

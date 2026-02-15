@@ -1,0 +1,69 @@
+repository_type: pipeline
+
+nf_core_version: 3.6.0.dev0
+
+lint:
+  files_unchanged:
+    - .prettierignore
+    - .prettierignore
+    - docs/CONTRIBUTING.md
+    - .prettierignore
+    - .prettierignore
+    - assets/sendmail_template.txt
+    - CODE_OF_CONDUCT.md
+    - assets/nf-core-rustqc-benchmarks_logo_light.png
+    - docs/images/nf-core-rustqc-benchmarks_logo_light.png
+    - docs/images/nf-core-rustqc-benchmarks_logo_dark.png
+    - .github/ISSUE_TEMPLATE/bug_report.yml
+    - .github/PULL_REQUEST_TEMPLATE.md
+    - assets/email_template.txt
+    - docs/README.md
+  nextflow_config:
+    - manifest.name
+    - manifest.homePage
+    - process.cpus
+    - process.memory
+    - process.time
+    - custom_config
+    - params.custom_config_version
+    - params.custom_config_base
+  multiqc_config: false
+  files_exist:
+    - conf/igenomes.config
+    - conf/igenomes_ignored.config
+    - assets/email_template.html
+    - assets/sendmail_template.txt
+    - assets/email_template.txt
+    - assets/multiqc_config.yml
+    - CITATIONS.md
+    - CODE_OF_CONDUCT.md
+    - assets/nf-core-rustqc-benchmarks_logo_light.png
+    - docs/images/nf-core-rustqc-benchmarks_logo_light.png
+    - docs/images/nf-core-rustqc-benchmarks_logo_dark.png
+    - .github/ISSUE_TEMPLATE/config.yml
+    - .github/workflows/awstest.yml
+    - .github/workflows/awsfulltest.yml
+    - conf/igenomes.config
+  included_configs: false
+
+template:
+  org: ewels
+  name: rustqc-benchmarks
+  description: Benchmark suite for validating RustQC outputs against upstream bioinformatics
+    tools
+  author: Phil Ewels
+  version: 1.0.0dev
+  force: true
+  outdir: /tmp/rustqc-benchmarks-scaffold
+  skip_features:
+    - igenomes
+    - fastqc
+    - multiqc
+    - slackreport
+    - adaptivecard
+    - email
+    - nf_core_configs
+    - citations
+    - codespaces
+    - rocrate
+  is_nfcore: false

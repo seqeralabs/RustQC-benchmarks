@@ -1,0 +1,73 @@
+name: nf-core linting
+# This workflow is triggered on pushes and PRs to the repository.
+# It runs the `nf-core pipelines lint` and markdown lint tests to ensure
+# that the code meets the nf-core guidelines.
+on:
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Run prek
+        uses: j178/prek-action@91fd7d7cf70ae1dee9f4f44e7dfa5d1073fe6623 # v1.0.11
+
+  nf-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pipeline code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Install Nextflow
+        uses: nf-core/setup-nextflow@v2
+
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+        with:
+          python-version: "3.14"
+          architecture: "x64"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7.1.4
+
+      - name: read .nf-core.yml
+        uses: pietrobolcato/action-read-yaml@9f13718d61111b69f30ab4ac683e67a56d254e1d # 1.1.0
+        id: read_yml
+        with:
+          config: ${{ github.workspace }}/.nf-core.yml
+
+      - name: Install dependencies
+        run: uv tool install nf-core==${{ steps.read_yml.outputs['nf_core_version'] }}
+
+      - name: Run nf-core pipelines lint
+        if: ${{ github.base_ref != 'master' }}
+        env:
+          GITHUB_COMMENTS_URL: ${{ github.event.pull_request.comments_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: nf-core -l lint_log.txt pipelines lint --dir ${GITHUB_WORKSPACE} --markdown lint_results.md
+
+      - name: Run nf-core pipelines lint --release
+        if: ${{ github.base_ref == 'master' }}
+        env:
+          GITHUB_COMMENTS_URL: ${{ github.event.pull_request.comments_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: nf-core -l lint_log.txt pipelines lint --release --dir ${GITHUB_WORKSPACE} --markdown lint_results.md
+
+      - name: Save PR number
+        if: ${{ always() }}
+        run: echo ${{ github.event.pull_request.number }} > PR_number.txt
+
+      - name: Upload linting log file artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: linting-logs
+          path: |
+            lint_log.txt
+            lint_results.md
+            PR_number.txt
