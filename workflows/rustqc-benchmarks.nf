@@ -21,6 +21,7 @@ include { RSEQC_JUNCTIONSATURATION   } from '../modules/nf-core/rseqc/junctionsa
 include { RSEQC_INNERDISTANCE        } from '../modules/nf-core/rseqc/innerdistance/main'
 include { SAMTOOLS_FLAGSTAT          } from '../modules/nf-core/samtools/flagstat/main'
 include { SAMTOOLS_IDXSTATS          } from '../modules/nf-core/samtools/idxstats/main'
+include { SAMTOOLS_INDEX             } from '../modules/nf-core/samtools/index/main'
 include { SAMTOOLS_STATS             } from '../modules/nf-core/samtools/stats/main'
 
 /*
@@ -64,9 +65,17 @@ workflow RUSTQC_BENCHMARKS {
     // MODULES: Upstream reference tools
     //
     if (params.run_upstream) {
-        // Use channel.value() so all processes can consume the same channel
-        ch_bam_bai = channel.value([ meta, bam_file, bai_file ])
-        ch_bam     = channel.value([ meta, bam_file ])
+        ch_bam = channel.value([ meta, bam_file ])
+
+        // Index the BAM if no BAI provided
+        if (bai_file) {
+            ch_bam_bai = channel.value([ meta, bam_file, bai_file ])
+        } else {
+            SAMTOOLS_INDEX(ch_bam)
+            ch_bam_bai = ch_bam
+                .combine(SAMTOOLS_INDEX.out.bai.map{ m, bai -> bai })
+                .map{ m, bam, bai -> [ m, bam, bai ] }
+        }
 
         // Tools that only need BAM (no GTF/BED/BAI required)
         //
@@ -76,18 +85,17 @@ workflow RUSTQC_BENCHMARKS {
 
         // Tools that require BAM + BAI
         //
-        if (bai_file) {
-            // RSeQC tools needing BAM + BAI only
-            RSEQC_BAMSTAT(ch_bam_bai)
-            RSEQC_READDUPLICATION(ch_bam_bai)
 
-            // samtools tools
-            SAMTOOLS_FLAGSTAT(ch_bam_bai)
-            SAMTOOLS_IDXSTATS(ch_bam_bai)
+        // RSeQC tools needing BAM + BAI only
+        RSEQC_BAMSTAT(ch_bam_bai)
+        RSEQC_READDUPLICATION(ch_bam_bai)
 
-            // samtools stats: needs tuple(meta, bam, bai) + tuple(meta, fasta) — fasta optional
-            SAMTOOLS_STATS(ch_bam_bai, channel.value([ meta, [] ]))
-        }
+        // samtools tools
+        SAMTOOLS_FLAGSTAT(ch_bam_bai)
+        SAMTOOLS_IDXSTATS(ch_bam_bai)
+
+        // samtools stats: needs tuple(meta, bam, bai) + tuple(meta, fasta) — fasta optional
+        SAMTOOLS_STATS(ch_bam_bai, channel.value([ meta, [] ]))
 
         // Tools that require GTF annotation
         //
@@ -102,7 +110,7 @@ workflow RUSTQC_BENCHMARKS {
 
         // Tools that require BAI + BED gene model
         //
-        if (bai_file && bed_file) {
+        if (bed_file) {
             RSEQC_INFEREXPERIMENT(ch_bam_bai, bed_file)
             RSEQC_READDISTRIBUTION(ch_bam_bai, bed_file)
             RSEQC_JUNCTIONANNOTATION(ch_bam_bai, bed_file)
