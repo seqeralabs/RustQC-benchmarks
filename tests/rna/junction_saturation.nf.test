@@ -29,7 +29,7 @@ nextflow_process {
         then {
             assert process.success
 
-            def rseqcFiles = process.out.rseqc[0][1].flatten()
+            def rseqcFiles = process.out.results[0][1].flatten()
 
             // Junction saturation R script (contains the data)
             def actualRscript = rseqcFiles.find {

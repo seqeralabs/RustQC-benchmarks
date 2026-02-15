@@ -13,17 +13,17 @@ Built as an nf-core-style Nextflow pipeline with [nf-test](https://www.nf-test.c
 
 ### Tools Compared (RNA suite)
 
-| RustQC output | Upstream tool | Comparison method |
-|---|---|---|
-| dupRadar | [dupRadar](https://bioconductor.org/packages/dupRadar/) (R/Bioconductor) | TSV match (exact + float tolerance) |
-| featureCounts | [Subread featureCounts](http://subread.sourceforge.net/) | TSV match (skip comment headers) |
-| bam_stat | [RSeQC bam_stat.py](http://rseqc.sourceforge.net/) | Text match (skip log headers) |
-| infer_experiment | [RSeQC infer_experiment.py](http://rseqc.sourceforge.net/) | Text match (skip info headers) |
-| read_duplication | [RSeQC read_duplication.py](http://rseqc.sourceforge.net/) | TSV exact match |
-| read_distribution | [RSeQC read_distribution.py](http://rseqc.sourceforge.net/) | Text match (known minor diffs) |
-| junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/) | Text + TSV match |
-| junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/) | Text match (R script data) |
-| inner_distance | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/) | TSV exact match |
+| RustQC output       | Upstream tool                                                            | Comparison method                   |
+| ------------------- | ------------------------------------------------------------------------ | ----------------------------------- |
+| dupRadar            | [dupRadar](https://bioconductor.org/packages/dupRadar/) (R/Bioconductor) | TSV match (exact + float tolerance) |
+| featureCounts       | [Subread featureCounts](http://subread.sourceforge.net/)                 | TSV match (skip comment headers)    |
+| bam_stat            | [RSeQC bam_stat.py](http://rseqc.sourceforge.net/)                       | Text match (skip log headers)       |
+| infer_experiment    | [RSeQC infer_experiment.py](http://rseqc.sourceforge.net/)               | Text match (skip info headers)      |
+| read_duplication    | [RSeQC read_duplication.py](http://rseqc.sourceforge.net/)               | TSV exact match                     |
+| read_distribution   | [RSeQC read_distribution.py](http://rseqc.sourceforge.net/)              | Text match (known minor diffs)      |
+| junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | Text + TSV match                    |
+| junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Text match (R script data)          |
+| inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | TSV exact match                     |
 
 All upstream tools are run via standard [nf-core modules](https://nf-co.re/modules), so reference outputs match what users get from [nf-core/rnaseq](https://nf-co.re/rnaseq).
 
@@ -96,22 +96,22 @@ nextflow run main.nf -profile rna_test,docker \
 
 ## Pipeline Parameters
 
-| Parameter | Default | Description |
-|---|---|---|
-| `--bam` | (from profile) | Input BAM file |
-| `--bai` | (from profile) | BAM index file |
-| `--gtf` | (from profile) | GTF annotation |
-| `--bed` | (from profile) | BED gene model |
-| `--sample_id` | `test` | Sample identifier |
-| `--paired` | `true` | Paired-end data |
-| `--strandedness` | `unstranded` | Library strandedness |
-| `--run_rustqc` | `true` | Run RustQC |
-| `--run_upstream` | `false` | Run upstream reference tools |
-| `--rustqc_image` | `ghcr.io/ewels/rustqc:latest` | RustQC Docker image |
-| `--rustqc_binary` | `null` | Path to local RustQC binary (overrides Docker) |
-| `--skip_dup_check` | `false` | Skip duplication check in RustQC |
-| `--biotype_attribute` | `null` | GTF biotype attribute name |
-| `--outdir` | `results` | Output directory |
+| Parameter             | Default                       | Description                                    |
+| --------------------- | ----------------------------- | ---------------------------------------------- |
+| `--bam`               | (from profile)                | Input BAM file                                 |
+| `--bai`               | (from profile)                | BAM index file                                 |
+| `--gtf`               | (from profile)                | GTF annotation                                 |
+| `--bed`               | (from profile)                | BED gene model                                 |
+| `--sample_id`         | `test`                        | Sample identifier                              |
+| `--paired`            | `true`                        | Paired-end data                                |
+| `--strandedness`      | `unstranded`                  | Library strandedness                           |
+| `--run_rustqc`        | `true`                        | Run RustQC                                     |
+| `--run_upstream`      | `false`                       | Run upstream reference tools                   |
+| `--rustqc_image`      | `ghcr.io/ewels/rustqc:latest` | RustQC Docker image                            |
+| `--rustqc_binary`     | `null`                        | Path to local RustQC binary (overrides Docker) |
+| `--skip_dup_check`    | `false`                       | Skip duplication check in RustQC               |
+| `--biotype_attribute` | `null`                        | GTF biotype attribute name                     |
+| `--outdir`            | `results`                     | Output directory                               |
 
 ## Managing Snapshots
 

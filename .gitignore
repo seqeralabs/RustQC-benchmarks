@@ -2,6 +2,7 @@
 .nextflow*
 work/
 results/
+results_*/
 reference_outputs/
 null/
 

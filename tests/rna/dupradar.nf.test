@@ -29,7 +29,7 @@ nextflow_process {
         then {
             assert process.success
 
-            def dupradarFiles = process.out.dupradar[0][1].flatten()
+            def dupradarFiles = process.out.results[0][1].flatten()
 
             def actualMatrix = dupradarFiles.find {
                 it.toString().contains('dupMatrix') || it.toString().contains('dup_matrix')

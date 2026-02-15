@@ -29,7 +29,7 @@ nextflow_process {
         then {
             assert process.success
 
-            def fcFiles = process.out.featurecounts[0][1].flatten()
+            def fcFiles = process.out.results[0][1].flatten()
 
             def actualCounts = fcFiles.find {
                 it.toString().endsWith('.tsv') && !it.toString().endsWith('.summary')

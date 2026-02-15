@@ -32,8 +32,6 @@ workflow RUSTQC_BENCHMARKS {
 
     main:
 
-    ch_versions = Channel.empty()
-
     //
     // Build input channels from params
     //
@@ -43,73 +41,57 @@ workflow RUSTQC_BENCHMARKS {
         strandedness:  params.strandedness ?: 'unstranded',
     ]
 
-    // BAM + BAI tuple (for rseqc, samtools, rustqc)
-    ch_bam_bai = Channel.of([ meta, file(params.bam, checkIfExists: true), file(params.bai, checkIfExists: true) ])
+    def bam_file = file(params.bam, checkIfExists: true)
+    def bai_file = file(params.bai, checkIfExists: true)
+    def gtf_file = file(params.gtf, checkIfExists: true)
+    def bed_file = file(params.bed, checkIfExists: true)
 
-    // BAM-only tuple (for dupradar)
-    ch_bam = ch_bam_bai.map { m, bam, bai -> [ m, bam ] }
-
-    // Annotation files
-    ch_gtf = Channel.value(file(params.gtf, checkIfExists: true))
-    ch_bed = Channel.value(file(params.bed, checkIfExists: true))
+    ch_versions = channel.empty()
 
     //
     // MODULE: RustQC RNA (single-pass, all tools)
     //
     if (params.run_rustqc) {
-        RUSTQC_RNA(ch_bam_bai, ch_gtf)
+        RUSTQC_RNA(
+            channel.value([ meta, bam_file, bai_file ]),
+            gtf_file,
+        )
         ch_versions = ch_versions.mix(RUSTQC_RNA.out.versions)
     }
 
     //
-    // MODULES: Upstream reference tools (optional, for snapshot regeneration)
+    // MODULES: Upstream reference tools
     //
     if (params.run_upstream) {
+        // Use channel.value() so all processes can consume the same channel
+        ch_bam_bai = channel.value([ meta, bam_file, bai_file ])
+        ch_bam     = channel.value([ meta, bam_file ])
 
         // dupRadar: tuple(meta, bam) + tuple(meta, gtf)
-        ch_meta_gtf = ch_bam.map { m, bam -> [ m, file(params.gtf) ] }
-        DUPRADAR(ch_bam, ch_meta_gtf)
-        ch_versions = ch_versions.mix(DUPRADAR.out.versions)
+        DUPRADAR(ch_bam, channel.value([ meta, gtf_file ]))
 
         // featureCounts: tuple(meta, bams, annotation) — all in one tuple
-        ch_featurecounts_input = ch_bam.map { m, bam -> [ m, bam, file(params.gtf) ] }
-        SUBREAD_FEATURECOUNTS(ch_featurecounts_input)
-        ch_versions = ch_versions.mix(SUBREAD_FEATURECOUNTS.out.versions)
+        SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
 
         // RSeQC tools needing BAM + BAI only
         RSEQC_BAMSTAT(ch_bam_bai)
-        ch_versions = ch_versions.mix(RSEQC_BAMSTAT.out.versions)
-
         RSEQC_READDUPLICATION(ch_bam_bai)
-        ch_versions = ch_versions.mix(RSEQC_READDUPLICATION.out.versions)
 
         // RSeQC tools needing BAM + BAI + BED
-        RSEQC_INFEREXPERIMENT(ch_bam_bai, ch_bed)
-        ch_versions = ch_versions.mix(RSEQC_INFEREXPERIMENT.out.versions)
+        RSEQC_INFEREXPERIMENT(ch_bam_bai, bed_file)
+        RSEQC_READDISTRIBUTION(ch_bam_bai, bed_file)
+        RSEQC_JUNCTIONANNOTATION(ch_bam_bai, bed_file)
+        RSEQC_JUNCTIONSATURATION(ch_bam_bai, bed_file)
+        RSEQC_INNERDISTANCE(ch_bam_bai, bed_file)
 
-        RSEQC_READDISTRIBUTION(ch_bam_bai, ch_bed)
-        ch_versions = ch_versions.mix(RSEQC_READDISTRIBUTION.out.versions)
-
-        RSEQC_JUNCTIONANNOTATION(ch_bam_bai, ch_bed)
-        ch_versions = ch_versions.mix(RSEQC_JUNCTIONANNOTATION.out.versions)
-
-        RSEQC_JUNCTIONSATURATION(ch_bam_bai, ch_bed)
-        ch_versions = ch_versions.mix(RSEQC_JUNCTIONSATURATION.out.versions)
-
-        RSEQC_INNERDISTANCE(ch_bam_bai, ch_bed)
-        ch_versions = ch_versions.mix(RSEQC_INNERDISTANCE.out.versions)
-
-        // samtools: tuple(meta, bam, bai) + tuple(meta, fasta)
+        // samtools tools
         SAMTOOLS_FLAGSTAT(ch_bam_bai)
-        ch_versions = ch_versions.mix(SAMTOOLS_FLAGSTAT.out.versions)
-
         SAMTOOLS_IDXSTATS(ch_bam_bai)
-        ch_versions = ch_versions.mix(SAMTOOLS_IDXSTATS.out.versions)
 
         // samtools stats: needs tuple(meta, bam, bai) + tuple(meta, fasta) — fasta optional
-        ch_empty_fasta = ch_bam.map { m, bam -> [ m, [] ] }
-        SAMTOOLS_STATS(ch_bam_bai, ch_empty_fasta)
-        ch_versions = ch_versions.mix(SAMTOOLS_STATS.out.versions)
+        SAMTOOLS_STATS(ch_bam_bai, channel.value([ meta, [] ]))
+
+        ch_versions = ch_versions.mix(DUPRADAR.out.versions)
     }
 
     //

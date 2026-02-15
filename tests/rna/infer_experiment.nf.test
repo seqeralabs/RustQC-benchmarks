@@ -29,7 +29,7 @@ nextflow_process {
         then {
             assert process.success
 
-            def actualFile = process.out.rseqc[0][1].flatten().find {
+            def actualFile = process.out.results[0][1].flatten().find {
                 it.toString().contains('infer_experiment') && it.toString().endsWith('.txt')
             }
             assert actualFile : "infer_experiment output file not found"

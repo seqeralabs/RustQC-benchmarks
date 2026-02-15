@@ -30,7 +30,7 @@ nextflow_process {
             assert process.success
 
             // Find the bam_stat output
-            def actualFile = process.out.rseqc[0][1].flatten().find {
+            def actualFile = process.out.results[0][1].flatten().find {
                 it.toString().contains('bam_stat') && it.toString().endsWith('.txt')
             }
             assert actualFile : "bam_stat output file not found"
