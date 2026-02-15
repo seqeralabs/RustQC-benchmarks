@@ -10,6 +10,7 @@ include { RUSTQC_RNA             } from '../modules/local/rustqc_rna'
 
 // nf-core modules: upstream reference tools
 include { DUPRADAR                   } from '../modules/nf-core/dupradar/main'
+include { PRESEQ_LCEXTRAP            } from '../modules/nf-core/preseq/lcextrap/main'
 include { SUBREAD_FEATURECOUNTS      } from '../modules/nf-core/subread/featurecounts/main'
 include { RSEQC_BAMSTAT              } from '../modules/nf-core/rseqc/bamstat/main'
 include { RSEQC_INFEREXPERIMENT      } from '../modules/nf-core/rseqc/inferexperiment/main'
@@ -42,16 +43,16 @@ workflow RUSTQC_BENCHMARKS {
     ]
 
     def bam_file = file(params.bam, checkIfExists: true)
-    def bai_file = file(params.bai, checkIfExists: true)
-    def gtf_file = file(params.gtf, checkIfExists: true)
-    def bed_file = file(params.bed, checkIfExists: true)
+    def bai_file = params.bai ? file(params.bai, checkIfExists: true) : null
+    def gtf_file = params.gtf ? file(params.gtf, checkIfExists: true) : null
+    def bed_file = params.bed ? file(params.bed, checkIfExists: true) : null
 
     ch_versions = channel.empty()
 
     //
     // MODULE: RustQC RNA (single-pass, all tools)
     //
-    if (params.run_rustqc) {
+    if (params.run_rustqc && gtf_file) {
         RUSTQC_RNA(
             channel.value([ meta, bam_file, bai_file ]),
             gtf_file,
@@ -67,31 +68,47 @@ workflow RUSTQC_BENCHMARKS {
         ch_bam_bai = channel.value([ meta, bam_file, bai_file ])
         ch_bam     = channel.value([ meta, bam_file ])
 
-        // dupRadar: tuple(meta, bam) + tuple(meta, gtf)
-        DUPRADAR(ch_bam, channel.value([ meta, gtf_file ]))
+        // Tools that only need BAM (no GTF/BED/BAI required)
+        //
 
-        // featureCounts: tuple(meta, bams, annotation) — all in one tuple
-        SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
+        // preseq: tuple(meta, bam) — coordinate-sorted BAM, same as nf-core/rnaseq
+        PRESEQ_LCEXTRAP(ch_bam)
 
-        // RSeQC tools needing BAM + BAI only
-        RSEQC_BAMSTAT(ch_bam_bai)
-        RSEQC_READDUPLICATION(ch_bam_bai)
+        // Tools that require BAM + BAI
+        //
+        if (bai_file) {
+            // RSeQC tools needing BAM + BAI only
+            RSEQC_BAMSTAT(ch_bam_bai)
+            RSEQC_READDUPLICATION(ch_bam_bai)
 
-        // RSeQC tools needing BAM + BAI + BED
-        RSEQC_INFEREXPERIMENT(ch_bam_bai, bed_file)
-        RSEQC_READDISTRIBUTION(ch_bam_bai, bed_file)
-        RSEQC_JUNCTIONANNOTATION(ch_bam_bai, bed_file)
-        RSEQC_JUNCTIONSATURATION(ch_bam_bai, bed_file)
-        RSEQC_INNERDISTANCE(ch_bam_bai, bed_file)
+            // samtools tools
+            SAMTOOLS_FLAGSTAT(ch_bam_bai)
+            SAMTOOLS_IDXSTATS(ch_bam_bai)
 
-        // samtools tools
-        SAMTOOLS_FLAGSTAT(ch_bam_bai)
-        SAMTOOLS_IDXSTATS(ch_bam_bai)
+            // samtools stats: needs tuple(meta, bam, bai) + tuple(meta, fasta) — fasta optional
+            SAMTOOLS_STATS(ch_bam_bai, channel.value([ meta, [] ]))
+        }
 
-        // samtools stats: needs tuple(meta, bam, bai) + tuple(meta, fasta) — fasta optional
-        SAMTOOLS_STATS(ch_bam_bai, channel.value([ meta, [] ]))
+        // Tools that require GTF annotation
+        //
+        if (gtf_file) {
+            // dupRadar: tuple(meta, bam) + tuple(meta, gtf)
+            DUPRADAR(ch_bam, channel.value([ meta, gtf_file ]))
+            ch_versions = ch_versions.mix(DUPRADAR.out.versions)
 
-        ch_versions = ch_versions.mix(DUPRADAR.out.versions)
+            // featureCounts: tuple(meta, bams, annotation) — all in one tuple
+            SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
+        }
+
+        // Tools that require BAI + BED gene model
+        //
+        if (bai_file && bed_file) {
+            RSEQC_INFEREXPERIMENT(ch_bam_bai, bed_file)
+            RSEQC_READDISTRIBUTION(ch_bam_bai, bed_file)
+            RSEQC_JUNCTIONANNOTATION(ch_bam_bai, bed_file)
+            RSEQC_JUNCTIONSATURATION(ch_bam_bai, bed_file)
+            RSEQC_INNERDISTANCE(ch_bam_bai, bed_file)
+        }
     }
 
     //

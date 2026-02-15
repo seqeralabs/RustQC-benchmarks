@@ -9,7 +9,7 @@ Validation suite for [RustQC](https://github.com/ewels/RustQC) -- comparing its 
 
 RustQC reimplements common RNA-seq QC tools in Rust. This repository:
 
-1. **Generates reference outputs** from the original upstream tools (RSeQC, dupRadar, featureCounts)
+1. **Generates reference outputs** from the original upstream tools (RSeQC, dupRadar, featureCounts, preseq, samtools)
 2. **Runs RustQC** on the same input data
 3. **Compares outputs** between RustQC and upstream tools, with per-tool tolerance rules
 4. **Tracks regressions** via nf-test snapshots -- if RustQC output changes, the snapshot test fails
@@ -29,6 +29,7 @@ All upstream tools are run via standard [nf-core modules](https://nf-co.re/modul
 | junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | Row-sorted TSV + BED comparison    |
 | junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Structural check (stochastic tool) |
 | inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | TSV match, 0.1 relative tolerance  |
+| preseq              | [preseq lc_extrap](http://smithlabresearch.org/software/preseq/)         | _comparison TBD_                   |
 
 ## How it works
 
