@@ -1,0 +1,46 @@
+nextflow_process {
+
+    name "Test RUSTQC infer_experiment output"
+    script "../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rna"
+    tag "infer_experiment"
+    tag "small"
+
+    test("small dataset - infer_experiment matches upstream RSeQC") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def actualFile = process.out.rseqc[0][1].flatten().find {
+                it.toString().contains('infer_experiment') && it.toString().endsWith('.txt')
+            }
+            assert actualFile : "infer_experiment output file not found"
+
+            def expectedFile = "${projectDir}/snapshots/rna/small/rseqc/infer_experiment.txt"
+
+            CompareUtils.textMatch(
+                path(actualFile).readLines(),
+                path(expectedFile).readLines(),
+                ['This is']
+            )
+        }
+    }
+}

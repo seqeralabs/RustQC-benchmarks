@@ -1,0 +1,54 @@
+nextflow_process {
+
+    name "Test RUSTQC read_distribution output"
+    script "../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rna"
+    tag "read_distribution"
+    tag "small"
+
+    test("small dataset - read_distribution matches upstream RSeQC") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def actualFile = process.out.rseqc[0][1].flatten().find {
+                it.toString().contains('read_distribution') && it.toString().endsWith('.txt')
+            }
+            assert actualFile : "read_distribution output file not found"
+
+            def expectedFile = "${projectDir}/snapshots/rna/small/rseqc/read_distribution.txt"
+
+            // read_distribution has known small numeric differences between
+            // RustQC and upstream RSeQC due to region assignment implementation.
+            // Use relative tolerance of 2% for numeric values.
+            CompareUtils.tsvMatch(
+                path(actualFile).readLines(),
+                path(expectedFile).readLines(),
+                [
+                    relTolerance: 0.02,
+                    skipPrefixes: ['processing', 'Process', 'Total Assigned Tags', 'Total Tags', 'Total Reads'],
+                    trimLines: true,
+                    delimiter: '\\s+'
+                ]
+            )
+        }
+    }
+}

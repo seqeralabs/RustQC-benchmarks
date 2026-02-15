@@ -1,86 +1,156 @@
-# ewels/rustqc-benchmarks
+# RustQC Benchmarks
 
-[![GitHub Actions CI Status](https://github.com/ewels/rustqc-benchmarks/actions/workflows/nf-test.yml/badge.svg)](https://github.com/ewels/rustqc-benchmarks/actions/workflows/nf-test.yml)
-[![GitHub Actions Linting Status](https://github.com/ewels/rustqc-benchmarks/actions/workflows/linting.yml/badge.svg)](https://github.com/ewels/rustqc-benchmarks/actions/workflows/linting.yml)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
+[![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.04.0-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D)](https://www.nextflow.io/)
 
-[![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.04.0-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
-[![nf-core template version](https://img.shields.io/badge/nf--core_template-3.6.0.dev0-green?style=flat&logo=nfcore&logoColor=white&color=%2324B064&link=https%3A%2F%2Fnf-co.re)](https://github.com/nf-core/tools/releases/tag/3.6.0.dev0)
-[![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
-[![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
-[![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
-[![Launch on Seqera Platform](https://img.shields.io/badge/Launch%20%F0%9F%9A%80-Seqera%20Platform-%234256e7)](https://cloud.seqera.io/launch?pipeline=https://github.com/ewels/rustqc-benchmarks)
+Benchmark suite for validating [RustQC](https://github.com/ewels/RustQC) outputs against upstream bioinformatics tools.
 
-## Introduction
+## Overview
 
-**ewels/rustqc-benchmarks** is a bioinformatics pipeline that ...
+RustQC reimplements common RNA-seq QC tools in Rust for performance. This repository provides automated correctness validation: it runs RustQC and compares its outputs against reference outputs from the original tools, using configurable comparison rules (exact match, numeric tolerance, line filtering).
 
-<!-- TODO nf-core:
-   Complete this sentence with a 2-3 sentence summary of what types of data the pipeline ingests, a brief overview of the
-   major pipeline sections and the types of output it produces. You're giving an overview to someone new
-   to nf-core here, in 15-20 seconds. For an example, see https://github.com/nf-core/rnaseq/blob/master/README.md#introduction
--->
+Built as an nf-core-style Nextflow pipeline with [nf-test](https://www.nf-test.com) for assertions.
 
-<!-- TODO nf-core: Include a figure that guides the user through the major workflow steps. Many nf-core
-     workflows use the "tube map" design for that. See https://nf-co.re/docs/guidelines/graphic_design/workflow_diagrams#examples for examples.   -->
-<!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->
+### Tools Compared (RNA suite)
 
-## Usage
+| RustQC output | Upstream tool | Comparison method |
+|---|---|---|
+| dupRadar | [dupRadar](https://bioconductor.org/packages/dupRadar/) (R/Bioconductor) | TSV match (exact + float tolerance) |
+| featureCounts | [Subread featureCounts](http://subread.sourceforge.net/) | TSV match (skip comment headers) |
+| bam_stat | [RSeQC bam_stat.py](http://rseqc.sourceforge.net/) | Text match (skip log headers) |
+| infer_experiment | [RSeQC infer_experiment.py](http://rseqc.sourceforge.net/) | Text match (skip info headers) |
+| read_duplication | [RSeQC read_duplication.py](http://rseqc.sourceforge.net/) | TSV exact match |
+| read_distribution | [RSeQC read_distribution.py](http://rseqc.sourceforge.net/) | Text match (known minor diffs) |
+| junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/) | Text + TSV match |
+| junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/) | Text match (R script data) |
+| inner_distance | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/) | TSV exact match |
 
-> [!NOTE]
-> If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data.
+All upstream tools are run via standard [nf-core modules](https://nf-co.re/modules), so reference outputs match what users get from [nf-core/rnaseq](https://nf-co.re/rnaseq).
 
-<!-- TODO nf-core: Describe the minimum required steps to execute the pipeline, e.g. how to prepare samplesheets.
-     Explain what rows and columns represent. For instance (please edit as appropriate):
+## Architecture
 
-First, prepare a samplesheet with your input data that looks as follows:
+```
+Suite-based organization (extensible for future RustQC commands):
 
-`samplesheet.csv`:
-
-```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+test-data/rna/small/     -- Small test BAM + annotations (in repo, ~7MB)
+snapshots/rna/small/     -- Reference outputs from upstream tools (in repo)
+tests/rna/               -- nf-test files comparing RustQC vs snapshots
+tests/lib/               -- Shared Groovy comparison utilities
+modules/local/           -- Custom RUSTQC_RNA process
+modules/nf-core/         -- 12 upstream tool modules (installed via nf-core)
+conf/rna_test.config     -- Small dataset parameters
+conf/rna_test_full.config -- Large dataset parameters (S3)
 ```
 
-Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
+## Quick Start
 
--->
+### Prerequisites
 
-Now, you can run the pipeline using:
+- [Nextflow](https://www.nextflow.io/) >= 25.04.0
+- [nf-test](https://www.nf-test.com) >= 0.9.0
+- Docker (or Singularity/Apptainer)
 
-<!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
+### Run correctness tests (small dataset)
 
 ```bash
-nextflow run ewels/rustqc-benchmarks \
-   -profile <docker/singularity/.../institute> \
-   --input samplesheet.csv \
-   --outdir <OUTDIR>
+# All RNA tools
+nf-test test --tag rna --profile docker
+
+# Single tool
+nf-test test --tag bam_stat --profile docker
+
+# With verbose output
+nf-test test --tag rna --profile docker --verbose
 ```
 
-> [!WARNING]
-> Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
+### Run the pipeline directly
+
+```bash
+# RustQC only (default)
+nextflow run main.nf -profile rna_test,docker
+
+# Upstream tools only (to regenerate reference snapshots)
+nextflow run main.nf -profile rna_test,docker --run_upstream --run_rustqc false
+
+# Both (full comparison)
+nextflow run main.nf -profile rna_test,docker --run_upstream
+```
+
+### Large dataset (S3)
+
+```bash
+# Tests
+nf-test test --tag large --profile docker
+
+# Pipeline
+nextflow run main.nf -profile rna_test_full,docker
+```
+
+### Use a local RustQC binary
+
+```bash
+nextflow run main.nf -profile rna_test,docker \
+    --rustqc_image '' \
+    --rustqc_binary /path/to/rustqc
+```
+
+## Pipeline Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `--bam` | (from profile) | Input BAM file |
+| `--bai` | (from profile) | BAM index file |
+| `--gtf` | (from profile) | GTF annotation |
+| `--bed` | (from profile) | BED gene model |
+| `--sample_id` | `test` | Sample identifier |
+| `--paired` | `true` | Paired-end data |
+| `--strandedness` | `unstranded` | Library strandedness |
+| `--run_rustqc` | `true` | Run RustQC |
+| `--run_upstream` | `false` | Run upstream reference tools |
+| `--rustqc_image` | `ghcr.io/ewels/rustqc:latest` | RustQC Docker image |
+| `--rustqc_binary` | `null` | Path to local RustQC binary (overrides Docker) |
+| `--skip_dup_check` | `false` | Skip duplication check in RustQC |
+| `--biotype_attribute` | `null` | GTF biotype attribute name |
+| `--outdir` | `results` | Output directory |
+
+## Managing Snapshots
+
+Reference snapshots in `snapshots/` are outputs from upstream tools, committed to git. They rarely need updating.
+
+### Regenerate upstream snapshots
+
+```bash
+# Run upstream tools
+nextflow run main.nf -profile rna_test,docker --run_upstream --run_rustqc false --outdir reference_outputs
+
+# Review the outputs, then copy to snapshots/
+cp -r reference_outputs/dupradar/gene_data/* snapshots/rna/small/dupradar/
+cp -r reference_outputs/featurecounts/* snapshots/rna/small/featurecounts/
+cp -r reference_outputs/rseqc/*/*.txt snapshots/rna/small/rseqc/
+# ... etc
+
+# Commit
+git add snapshots/ && git commit -m "Regenerate upstream reference snapshots"
+```
+
+## Adding a New Benchmark Suite
+
+This repo is organized by RustQC subcommand. To add a new suite (e.g., `rustqc dna`):
+
+1. Create `modules/local/rustqc_dna.nf`
+2. Install relevant nf-core modules (`nf-core modules install ...`)
+3. Create `workflows/dna.nf` or extend the main workflow
+4. Add `conf/dna_test.config` and `conf/dna_test_full.config`
+5. Add test data to `test-data/dna/small/`
+6. Generate upstream snapshots in `snapshots/dna/small/`
+7. Write nf-test files in `tests/dna/`
+8. Add `withName` blocks to `conf/modules.config`
+
+Nothing in the RNA suite is touched.
 
 ## Credits
 
-ewels/rustqc-benchmarks was originally written by Phil Ewels.
+Built with the [nf-core](https://nf-co.re) pipeline template and community modules.
 
-We thank the following people for their extensive assistance in the development of this pipeline:
-
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
-
-## Contributions and Support
-
-If you would like to contribute to this pipeline, please see the [contributing guidelines](docs/CONTRIBUTING.md).
-
-## Citations
-
-<!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
-<!-- If you use ewels/rustqc-benchmarks for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
-
-This pipeline uses code and infrastructure developed and maintained by the [nf-core](https://nf-co.re) community, reused here under the [MIT license](https://github.com/nf-core/tools/blob/main/LICENSE).
-
-> **The nf-core framework for community-curated bioinformatics pipelines.**
->
 > Philip Ewels, Alexander Peltzer, Sven Fillinger, Harshil Patel, Johannes Alneberg, Andreas Wilm, Maxime Ulysse Garcia, Paolo Di Tommaso & Sven Nahnsen.
->
 > _Nat Biotechnol._ 2020 Feb 13. doi: [10.1038/s41587-020-0439-x](https://dx.doi.org/10.1038/s41587-020-0439-x).

@@ -10,24 +10,120 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir"],
+            "required": ["bam", "gtf", "outdir"],
             "properties": {
-                "input": {
+                "bam": {
                     "type": "string",
                     "format": "file-path",
                     "exists": true,
-                    "schema": "assets/schema_input.json",
-                    "mimetype": "text/csv",
-                    "pattern": "^\\S+\\.csv$",
-                    "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row.",
-                    "fa_icon": "fas fa-file-csv"
+                    "description": "Path to input BAM file.",
+                    "fa_icon": "fas fa-file"
+                },
+                "bai": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to BAM index file. If not provided, defaults to <bam>.bai.",
+                    "fa_icon": "fas fa-file"
+                },
+                "gtf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Path to GTF annotation file.",
+                    "fa_icon": "fas fa-file-alt"
+                },
+                "bed": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to BED gene model file (required for RSeQC tools).",
+                    "fa_icon": "fas fa-file-alt"
                 },
                 "outdir": {
                     "type": "string",
                     "format": "directory-path",
-                    "description": "The output directory where the results will be saved. You have to use absolute paths to storage on Cloud infrastructure.",
+                    "description": "The output directory where the results will be saved.",
                     "fa_icon": "fas fa-folder-open"
+                }
+            }
+        },
+        "benchmark_options": {
+            "title": "Benchmark options",
+            "type": "object",
+            "fa_icon": "fas fa-cogs",
+            "description": "Options controlling which benchmark suite and tools to run.",
+            "properties": {
+                "suite": {
+                    "type": "string",
+                    "default": "rna",
+                    "description": "Which benchmark suite to run.",
+                    "enum": ["rna"]
+                },
+                "sample_id": {
+                    "type": "string",
+                    "default": "test",
+                    "description": "Sample identifier used in output filenames."
+                },
+                "paired": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether the input BAM contains paired-end reads."
+                },
+                "strandedness": {
+                    "type": "string",
+                    "default": "unstranded",
+                    "description": "Library strandedness.",
+                    "enum": ["unstranded", "forward", "reverse"]
+                },
+                "run_rustqc": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Run the RustQC tool."
+                },
+                "run_upstream": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run the upstream reference tools (dupRadar, featureCounts, RSeQC, samtools)."
+                }
+            }
+        },
+        "rustqc_options": {
+            "title": "RustQC options",
+            "type": "object",
+            "fa_icon": "fas fa-wrench",
+            "description": "Options specific to the RustQC tool.",
+            "properties": {
+                "rustqc_image": {
+                    "type": "string",
+                    "default": "ghcr.io/ewels/rustqc:latest",
+                    "description": "Docker image for RustQC."
+                },
+                "rustqc_binary": {
+                    "type": "string",
+                    "description": "Path to local RustQC binary (overrides Docker image when set)."
+                },
+                "skip_dup_check": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip the duplication check in RustQC."
+                },
+                "rustqc_config": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to RustQC config YAML file."
+                },
+                "biotype_attribute": {
+                    "type": "string",
+                    "description": "GTF attribute to use for biotype classification."
+                },
+                "featurecounts_group_type": {
+                    "type": "string",
+                    "default": "gene_biotype",
+                    "description": "Attribute type for featureCounts grouping."
+                },
+                "featurecounts_feature_type": {
+                    "type": "string",
+                    "default": "exon",
+                    "description": "Feature type for featureCounts counting."
                 }
             }
         },
@@ -36,7 +132,6 @@
             "type": "object",
             "fa_icon": "fas fa-file-import",
             "description": "Less common options for the pipeline, typically set in a config file.",
-            "help_text": "These options are common to all nf-core pipelines and allow you to customise some of the core preferences for how the pipeline runs.\n\nTypically these options would be set in a Nextflow config file loaded for all pipeline runs, such as `~/.nextflow/config`.",
             "properties": {
                 "version": {
                     "type": "boolean",
@@ -48,7 +143,6 @@
                     "type": "string",
                     "default": "copy",
                     "description": "Method used to save pipeline results to output directory.",
-                    "help_text": "The Nextflow `publishDir` option specifies which intermediate files should be saved to the output directory. This option tells the pipeline what method should be used to move these files. See [Nextflow docs](https://www.nextflow.io/docs/latest/process.html#publishdir) for details.",
                     "fa_icon": "fas fa-copy",
                     "enum": ["symlink", "rellink", "link", "copy", "copyNoFollow", "move"],
                     "hidden": true
@@ -76,7 +170,7 @@
                 "trace_report_suffix": {
                     "type": "string",
                     "fa_icon": "far calendar",
-                    "description": "Suffix to add to the trace report filename. Default is the date and time in the format yyyy-MM-dd_HH-mm-ss.",
+                    "description": "Suffix to add to the trace report filename.",
                     "hidden": true
                 },
                 "help": {
@@ -89,7 +183,7 @@
                 },
                 "show_hidden": {
                     "type": "boolean",
-                    "description": "Display hidden parameters in the help message (only works when --help or --help_full are provided)."
+                    "description": "Display hidden parameters in the help message."
                 }
             }
         }
@@ -97,6 +191,12 @@
     "allOf": [
         {
             "$ref": "#/$defs/input_output_options"
+        },
+        {
+            "$ref": "#/$defs/benchmark_options"
+        },
+        {
+            "$ref": "#/$defs/rustqc_options"
         },
         {
             "$ref": "#/$defs/generic_options"

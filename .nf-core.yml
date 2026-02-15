@@ -5,10 +5,7 @@ nf_core_version: 3.6.0.dev0
 lint:
   files_unchanged:
     - .prettierignore
-    - .prettierignore
     - docs/CONTRIBUTING.md
-    - .prettierignore
-    - .prettierignore
     - assets/sendmail_template.txt
     - CODE_OF_CONDUCT.md
     - assets/nf-core-rustqc-benchmarks_logo_light.png

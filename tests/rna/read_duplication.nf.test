@@ -1,0 +1,66 @@
+nextflow_process {
+
+    name "Test RUSTQC read_duplication output"
+    script "../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rna"
+    tag "read_duplication"
+    tag "small"
+
+    test("small dataset - read_duplication pos DupRate matches upstream RSeQC") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rseqcFiles = process.out.rseqc[0][1].flatten()
+
+            // Position-based duplication rates
+            def actualPos = rseqcFiles.find {
+                it.toString().contains('pos.DupRate.xls') ||
+                (it.toString().contains('DupRate') && it.toString().contains('pos'))
+            }
+
+            // Sequence-based duplication rates
+            def actualSeq = rseqcFiles.find {
+                it.toString().contains('seq.DupRate.xls') ||
+                (it.toString().contains('DupRate') && it.toString().contains('seq'))
+            }
+
+            assertAll(
+                {
+                    assert actualPos : "pos.DupRate.xls not found in RUSTQC_RNA rseqc output"
+                    CompareUtils.tsvMatch(
+                        path(actualPos).readLines(),
+                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication.pos.DupRate.xls").readLines(),
+                        [tolerance: 0.0]
+                    )
+                },
+                {
+                    assert actualSeq : "seq.DupRate.xls not found in RUSTQC_RNA rseqc output"
+                    CompareUtils.tsvMatch(
+                        path(actualSeq).readLines(),
+                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication.seq.DupRate.xls").readLines(),
+                        [tolerance: 0.0]
+                    )
+                }
+            )
+        }
+    }
+}

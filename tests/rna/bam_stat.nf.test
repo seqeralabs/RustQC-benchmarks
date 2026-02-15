@@ -1,0 +1,48 @@
+nextflow_process {
+
+    name "Test RUSTQC bam_stat output"
+    script "../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rna"
+    tag "bam_stat"
+    tag "small"
+
+    test("small dataset - bam_stat text report matches upstream RSeQC") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            // Find the bam_stat output
+            def actualFile = process.out.rseqc[0][1].flatten().find {
+                it.toString().contains('bam_stat') && it.toString().endsWith('.txt')
+            }
+            assert actualFile : "bam_stat output file not found"
+
+            def expectedFile = "${projectDir}/snapshots/rna/small/rseqc/bam_stat.txt"
+
+            // Text match, ignoring log/processing header lines
+            CompareUtils.textMatch(
+                path(actualFile).readLines(),
+                path(expectedFile).readLines(),
+                ['Load BAM', 'processing']
+            )
+        }
+    }
+}

@@ -1,0 +1,76 @@
+nextflow_pipeline {
+
+    name "Test RNA benchmark pipeline"
+    script "../../main.nf"
+
+    tag "rna"
+    tag "pipeline"
+
+    test("small dataset - RustQC only (smoke test)") {
+
+        tag "small"
+
+        when {
+            params {
+                outdir = "$outputDir"
+                run_rustqc   = true
+                run_upstream = false
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // RustQC output directories should exist
+            assert new File("${params.outdir}/rustqc").exists()
+        }
+    }
+
+    test("small dataset - upstream only (smoke test)") {
+
+        tag "small"
+        tag "upstream"
+
+        when {
+            params {
+                outdir = "$outputDir"
+                run_rustqc   = false
+                run_upstream = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // Upstream output directories should exist
+            assert new File("${params.outdir}/dupradar").exists()
+            assert new File("${params.outdir}/featurecounts").exists()
+            assert new File("${params.outdir}/rseqc").exists()
+            assert new File("${params.outdir}/samtools").exists()
+        }
+    }
+
+    test("small dataset - full pipeline (smoke test)") {
+
+        tag "small"
+
+        when {
+            params {
+                outdir = "$outputDir"
+                run_rustqc   = true
+                run_upstream = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // Both RustQC and upstream output directories should exist
+            assert new File("${params.outdir}/rustqc").exists()
+            assert new File("${params.outdir}/dupradar").exists()
+            assert new File("${params.outdir}/featurecounts").exists()
+            assert new File("${params.outdir}/rseqc").exists()
+            assert new File("${params.outdir}/samtools").exists()
+        }
+    }
+}

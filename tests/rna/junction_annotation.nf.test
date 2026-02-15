@@ -1,0 +1,77 @@
+nextflow_process {
+
+    name "Test RUSTQC junction_annotation output"
+    script "../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rna"
+    tag "junction_annotation"
+    tag "small"
+
+    test("small dataset - junction_annotation matches upstream RSeQC") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rseqcFiles = process.out.rseqc[0][1].flatten()
+
+            // Junction BED file
+            def actualBed = rseqcFiles.find {
+                it.toString().contains('junction_annotation') && it.toString().endsWith('.junction.bed')
+            }
+
+            // Junction XLS file
+            def actualXls = rseqcFiles.find {
+                it.toString().contains('junction_annotation') && it.toString().endsWith('.junction.xls')
+            }
+
+            // Junction annotation log/txt
+            def actualTxt = rseqcFiles.find {
+                it.toString().contains('junction_annotation') &&
+                (it.toString().endsWith('.txt') || it.toString().endsWith('.log'))
+            }
+
+            assertAll(
+                {
+                    assert actualBed : "junction.bed not found in RUSTQC_RNA rseqc output"
+                    CompareUtils.textMatch(
+                        path(actualBed).readLines(),
+                        path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation.junction.bed").readLines()
+                    )
+                },
+                {
+                    assert actualXls : "junction.xls not found in RUSTQC_RNA rseqc output"
+                    CompareUtils.tsvMatch(
+                        path(actualXls).readLines(),
+                        path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation.junction.xls").readLines(),
+                        [tolerance: 0.0]
+                    )
+                },
+                {
+                    assert actualTxt : "junction_annotation.txt not found in RUSTQC_RNA rseqc output"
+                    CompareUtils.textMatch(
+                        path(actualTxt).readLines(),
+                        path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation.txt").readLines(),
+                        ['Processing', 'Loading']
+                    )
+                }
+            )
+        }
+    }
+}

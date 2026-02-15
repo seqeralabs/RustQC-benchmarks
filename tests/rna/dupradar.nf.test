@@ -1,0 +1,70 @@
+nextflow_process {
+
+    name "Test RUSTQC dupRadar output"
+    script "../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rna"
+    tag "dupradar"
+    tag "small"
+
+    test("small dataset - dupRadar dupMatrix matches upstream") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def dupradarFiles = process.out.dupradar[0][1].flatten()
+
+            def actualMatrix = dupradarFiles.find {
+                it.toString().contains('dupMatrix') || it.toString().contains('dup_matrix')
+            }
+            def actualSlope = dupradarFiles.find {
+                it.toString().contains('intercept_slope') || it.toString().contains('slope')
+            }
+
+            assertAll(
+                // Exact TSV match for dup matrix
+                {
+                    assert actualMatrix : "dupMatrix output file not found in: ${dupradarFiles}"
+                    CompareUtils.tsvMatch(
+                        path(actualMatrix).readLines(),
+                        path("${projectDir}/snapshots/rna/small/dupradar/dupMatrix.txt").readLines(),
+                        [tolerance: 0.0]
+                    )
+                },
+                // Intercept/slope with float tolerance
+                {
+                    assert actualSlope : "intercept_slope output file not found in: ${dupradarFiles}"
+                    CompareUtils.tsvMatch(
+                        path(actualSlope).readLines(),
+                        path("${projectDir}/snapshots/rna/small/dupradar/intercept_slope.txt").readLines(),
+                        [tolerance: 1e-6]
+                    )
+                },
+                // Check plot files exist
+                {
+                    def plots = dupradarFiles.findAll {
+                        it.toString().endsWith('.png') || it.toString().endsWith('.svg')
+                    }
+                    assert plots.size() > 0 : "No plot files produced"
+                }
+            )
+        }
+    }
+}

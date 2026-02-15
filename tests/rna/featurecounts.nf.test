@@ -1,0 +1,64 @@
+nextflow_process {
+
+    name "Test RUSTQC featureCounts output"
+    script "../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rna"
+    tag "featurecounts"
+    tag "small"
+
+    test("small dataset - featureCounts matches upstream Subread") {
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fcFiles = process.out.featurecounts[0][1].flatten()
+
+            def actualCounts = fcFiles.find {
+                it.toString().endsWith('.tsv') && !it.toString().endsWith('.summary')
+            }
+            def actualSummary = fcFiles.find {
+                it.toString().endsWith('.tsv.summary') || it.toString().endsWith('.summary')
+            }
+
+            assertAll(
+                // featureCounts TSV - skip comment header lines starting with #
+                {
+                    assert actualCounts : "featureCounts TSV not found in: ${fcFiles}"
+                    CompareUtils.tsvMatch(
+                        path(actualCounts).readLines(),
+                        path("${projectDir}/snapshots/rna/small/featurecounts/featureCounts.tsv").readLines(),
+                        [skipPrefixes: ['#']]
+                    )
+                },
+                // Summary file - exact match
+                {
+                    if (actualSummary) {
+                        CompareUtils.tsvMatch(
+                            path(actualSummary).readLines(),
+                            path("${projectDir}/snapshots/rna/small/featurecounts/featureCounts.tsv.summary").readLines(),
+                            [tolerance: 0.0]
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
