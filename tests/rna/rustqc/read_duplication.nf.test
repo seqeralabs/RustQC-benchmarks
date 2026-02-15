@@ -44,7 +44,7 @@ nextflow_process {
                     assert actualPos : "pos.DupRate.xls not found in: ${allFiles}"
                     CompareUtils.tsvMatch(
                         path(actualPos).readLines(),
-                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication.pos.DupRate.xls").readLines(),
+                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/pos.DupRate.xls").readLines(),
                         [tolerance: 0.0]
                     )
                 },
@@ -52,7 +52,7 @@ nextflow_process {
                     assert actualSeq : "seq.DupRate.xls not found in: ${allFiles}"
                     CompareUtils.tsvMatch(
                         path(actualSeq).readLines(),
-                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication.seq.DupRate.xls").readLines(),
+                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/seq.DupRate.xls").readLines(),
                         [tolerance: 0.0]
                     )
                 }

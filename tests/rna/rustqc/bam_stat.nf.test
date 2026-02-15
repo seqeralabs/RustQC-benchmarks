@@ -37,7 +37,7 @@ nextflow_process {
             // Compare against upstream reference
             CompareUtils.textMatch(
                 path(actualFile).readLines(),
-                path("${projectDir}/snapshots/rna/small/rseqc/bam_stat.txt").readLines(),
+                path("${projectDir}/snapshots/rna/small/rseqc/bam_stat/bam_stat.txt").readLines(),
                 ['Load BAM', 'processing']
             )
 

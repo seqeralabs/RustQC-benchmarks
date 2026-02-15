@@ -1,14 +1,13 @@
 # Nextflow
 .nextflow*
 work/
-results/*
-!results/rna/
-results/rna/*
-!results/rna/small/
-results/rna/small/*.png
-results/rna/small/*.svg
-results/rna/small/*.pdf
+results/
 results_*/
+
+# Ignore plot files in snapshots (only commit text-based outputs)
+snapshots/**/*.png
+snapshots/**/*.svg
+snapshots/**/*.pdf
 reference_outputs/
 null/
 

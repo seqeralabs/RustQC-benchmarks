@@ -47,7 +47,7 @@ nextflow_process {
                     assert actualBed : "junction.bed not found in: ${allFiles}"
                     // Sort both BED files before comparing (order may differ)
                     def actualLines = path(actualBed).readLines().sort()
-                    def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation.junction.bed").readLines().sort()
+                    def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation/junction.bed").readLines().sort()
                     assert actualLines.size() > 0 : "junction.bed is empty"
                     // Check line count is within 10% (RustQC may find slightly different junctions)
                     def ratio = actualLines.size() / (double) expectedLines.size()
@@ -56,7 +56,7 @@ nextflow_process {
                 {
                     assert actualXls : "junction.xls not found in: ${allFiles}"
                     def actualLines = path(actualXls).readLines().sort()
-                    def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation.junction.xls").readLines().sort()
+                    def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation/junction.xls").readLines().sort()
                     assert actualLines.size() > 0 : "junction.xls is empty"
                     def ratio = actualLines.size() / (double) expectedLines.size()
                     assert ratio > 0.8 && ratio < 1.2 : "junction.xls line count differs significantly: ${actualLines.size()} vs ${expectedLines.size()}"

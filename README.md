@@ -51,11 +51,23 @@ RustQC output files are found by **suffix pattern** (e.g. `endsWith('bam_stat.tx
 
 ```
 test-data/rna/small/          Small test BAM + annotations (~7 MB, committed)
-snapshots/rna/small/          Reference outputs from upstream tools (committed)
-  dupradar/                     dupMatrix.txt, intercept_slope.txt
-  featurecounts/                featureCounts.tsv, featureCounts.tsv.summary
-  rseqc/                        bam_stat.txt, infer_experiment.txt, ...
-results/rna/small/            RustQC example outputs (committed, text only)
+snapshots/rna/small/          Reference outputs (committed, plots gitignored)
+  dupradar/                     Upstream dupRadar output
+  featurecounts/                Upstream featureCounts output
+  rseqc/                        Upstream RSeQC output, one subdir per tool
+    bam_stat/                     bam_stat.txt
+    infer_experiment/             infer_experiment.txt
+    read_distribution/            read_distribution.txt
+    read_duplication/             pos.DupRate.xls, seq.DupRate.xls, ...
+    inner_distance/               inner_distance.txt, inner_distance_freq.txt, ...
+    junction_annotation/          junction.bed, junction.xls, ...
+    junction_saturation/          junctionSaturation_plot.r
+  rustqc/                       RustQC output, same tool subdirectory structure
+    dupradar/                     test_dupMatrix.txt, test_intercept_slope.txt, ...
+    featurecounts/                test.featureCounts.tsv, ...
+    rseqc/bam_stat/               test.bam_stat.txt
+    rseqc/infer_experiment/       test.infer_experiment.txt
+    ...                           (mirrors upstream structure)
 tests/
   lib/CompareUtils.groovy     Shared comparison utilities (tsvMatch, textMatch, etc.)
   rna/upstream/               9 nf-test files, one per upstream tool
@@ -172,15 +184,18 @@ nf-test test --tag rustqc --update-snapshot
 # Review the diff
 git diff tests/rna/rustqc/*.nf.test.snap
 
-# If the changes look correct, also update the committed example outputs
-# (find the output dir from the nf-test work directory)
-cp .nf-test/tests/<hash>/work/<hash>/output/*.txt results/rna/small/
-cp .nf-test/tests/<hash>/work/<hash>/output/*.tsv results/rna/small/
-cp .nf-test/tests/<hash>/work/<hash>/output/*.xls results/rna/small/
-cp .nf-test/tests/<hash>/work/<hash>/output/*.r results/rna/small/
+# If the changes look correct, also update the committed RustQC snapshots.
+# Find an output dir from the nf-test work directory and copy files
+# into the matching subdirectory structure under snapshots/rna/small/rustqc/.
+# For example:
+SRC=".nf-test/tests/<hash>/work/<hash>/output"
+cp "$SRC"/test_dupMatrix.txt snapshots/rna/small/rustqc/dupradar/
+cp "$SRC"/test.featureCounts.tsv snapshots/rna/small/rustqc/featurecounts/
+cp "$SRC"/test.bam_stat.txt snapshots/rna/small/rustqc/rseqc/bam_stat/
+# ... etc for each tool
 
 # Commit
-git add tests/rna/rustqc/*.nf.test.snap results/rna/small/
+git add tests/rna/rustqc/*.nf.test.snap snapshots/rna/small/rustqc/
 git commit -m "Update RustQC snapshots for <reason>"
 ```
 
@@ -195,7 +210,7 @@ nf-test test --tag upstream --update-snapshot
 # Copy fresh upstream outputs to the reference snapshots directory
 # (the rustqc tests read files from snapshots/rna/small/ for comparison)
 
-# dupradar (note: uses test_ prefix)
+# dupradar (note: uses test_ prefix in filenames)
 cp .nf-test/tests/<hash>/work/<hash>/test_dupMatrix.txt snapshots/rna/small/dupradar/dupMatrix.txt
 cp .nf-test/tests/<hash>/work/<hash>/test_intercept_slope.txt snapshots/rna/small/dupradar/intercept_slope.txt
 
@@ -203,8 +218,10 @@ cp .nf-test/tests/<hash>/work/<hash>/test_intercept_slope.txt snapshots/rna/smal
 cp .nf-test/tests/<hash>/work/<hash>/test.featureCounts.tsv snapshots/rna/small/featurecounts/
 cp .nf-test/tests/<hash>/work/<hash>/test.featureCounts.tsv.summary snapshots/rna/small/featurecounts/
 
-# rseqc (strip test. prefix -> tool name prefix)
-cp .nf-test/tests/<hash>/work/<hash>/test.bam_stat.txt snapshots/rna/small/rseqc/bam_stat.txt
+# rseqc -- each tool has its own subdirectory
+cp .nf-test/tests/<hash>/work/<hash>/test.bam_stat.txt snapshots/rna/small/rseqc/bam_stat/bam_stat.txt
+cp .nf-test/tests/<hash>/work/<hash>/test.infer_experiment.txt snapshots/rna/small/rseqc/infer_experiment/
+cp .nf-test/tests/<hash>/work/<hash>/test.pos.DupRate.xls snapshots/rna/small/rseqc/read_duplication/pos.DupRate.xls
 # ... etc for each tool
 
 # Re-run rustqc tests to check if comparisons still hold

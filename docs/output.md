@@ -9,58 +9,52 @@ These are the "ground truth" that RustQC tests compare against.
 
 ```
 snapshots/rna/small/
-  dupradar/
-    dupMatrix.txt              Gene-level duplication rate matrix
-    intercept_slope.txt        Intercept and slope summary
-  featurecounts/
-    featureCounts.tsv          Gene counts (7 columns: Geneid, Chr, Start, End, Strand, Length, count)
-    featureCounts.tsv.summary  Assignment statistics
-  rseqc/
-    bam_stat.txt               BAM mapping statistics
-    infer_experiment.txt       Strandedness inference
-    read_distribution.txt      Read distribution across genomic features
-    read_duplication.pos.DupRate.xls   Position-based duplication rates
-    read_duplication.seq.DupRate.xls   Sequence-based duplication rates
-    inner_distance.inner_distance.txt       Per-read inner distances
-    inner_distance.inner_distance_freq.txt  Inner distance frequency histogram
-    junction_annotation.junction.bed        Splice junction BED file
-    junction_annotation.junction.xls        Splice junction details
-    junction_annotation.txt                 Annotation summary
-    junction_saturation.junctionSaturation_plot.r  Saturation R script
-    ...and more (R scripts, Interact BED, etc.)
+  dupradar/                              Upstream dupRadar output
+    dupMatrix.txt                          Gene-level duplication rate matrix
+    intercept_slope.txt                    Intercept and slope summary
+  featurecounts/                         Upstream featureCounts output
+    featureCounts.tsv                      Gene counts (7 columns)
+    featureCounts.tsv.summary              Assignment statistics
+  rseqc/                                 Upstream RSeQC output (one subdir per tool)
+    bam_stat/
+      bam_stat.txt                         BAM mapping statistics
+    infer_experiment/
+      infer_experiment.txt                 Strandedness inference
+    read_distribution/
+      read_distribution.txt                Read distribution across genomic features
+    read_duplication/
+      pos.DupRate.xls                      Position-based duplication rates
+      seq.DupRate.xls                      Sequence-based duplication rates
+      DupRate_plot.r                       R plotting script
+    inner_distance/
+      inner_distance.txt                   Per-read inner distances
+      inner_distance_freq.txt              Inner distance frequency histogram
+      inner_distance_plot.r                R plotting script
+    junction_annotation/
+      junction.bed                         Splice junction BED file
+      junction.xls                         Splice junction details
+      junction_annotation.txt              Annotation summary
+      junction_plot.r                      R plotting script
+    junction_saturation/
+      junctionSaturation_plot.r            Saturation R script
+  rustqc/                                RustQC output (same tool subdirectory structure)
+    dupradar/                              test_dupMatrix.txt, test_intercept_slope.txt, ...
+    featurecounts/                         test.featureCounts.tsv, ...
+    rseqc/
+      bam_stat/                            test.bam_stat.txt
+      infer_experiment/                    test.infer_experiment.txt
+      read_distribution/                   test.read_distribution.txt
+      read_duplication/                    test.pos.DupRate.xls, test.seq.DupRate.xls
+      inner_distance/                      test.inner_distance.txt, test.inner_distance_freq.txt, ...
+      junction_annotation/                 test.junction.bed, test.junction.xls, ...
+      junction_saturation/                 test.junctionSaturation_plot.r, ...
 ```
 
-Regenerate these by running `nf-test test --tag upstream --update-snapshot` and copying the output files from the nf-test work directories. See the main [README](../README.md#after-an-upstream-tool-update) for the full procedure.
+Both upstream and RustQC output files are committed to git (text/TSV only -- plot files like `.png`, `.svg`, `.pdf` are gitignored).
 
-### `results/rna/small/`
+Regenerate upstream snapshots by running `nf-test test --tag upstream --update-snapshot` and copying the output files from the nf-test work directories. Regenerate RustQC snapshots similarly with `--tag rustqc`. See the main [README](../README.md#updating-snapshots) for the full procedure.
 
-RustQC example outputs, committed to git (text files only -- plots are gitignored).
-These show what RustQC currently produces for the small test dataset.
-
-All files are prefixed with the sample ID (`test.` or `test_`). RustQC outputs everything flat in a single directory.
-
-Key files:
-
-| File                                  | Description                           |
-| ------------------------------------- | ------------------------------------- |
-| `test.bam_stat.txt`                   | BAM mapping statistics                |
-| `test.infer_experiment.txt`           | Strandedness inference                |
-| `test.featureCounts.tsv`              | Gene counts (2 columns: gene + count) |
-| `test.featureCounts.tsv.summary`      | Assignment statistics                 |
-| `test_dupMatrix.txt`                  | Gene-level duplication rate matrix    |
-| `test_intercept_slope.txt`            | Intercept and slope summary           |
-| `test.read_distribution.txt`          | Read distribution across features     |
-| `test.pos.DupRate.xls`                | Position-based duplication rates      |
-| `test.seq.DupRate.xls`                | Sequence-based duplication rates      |
-| `test.inner_distance.txt`             | Per-read inner distances              |
-| `test.inner_distance_freq.txt`        | Inner distance frequency histogram    |
-| `test.junction.bed`                   | Splice junction BED                   |
-| `test.junction.xls`                   | Splice junction details               |
-| `test.junction_annotation.txt`        | Annotation summary                    |
-| `test.junctionSaturation_plot.r`      | Saturation R script                   |
-| `test.biotype_counts.tsv`             | Biotype-level counts                  |
-| `test.inner_distance_summary.txt`     | Inner distance summary stats          |
-| `test.junctionSaturation_summary.txt` | Junction saturation summary           |
+> **Note:** The current RustQC `:dev` Docker image outputs all files flat in a single directory. The subdirectory structure under `snapshots/rna/small/rustqc/` reflects the _intended_ future RustQC output layout. The nf-test comparison files find RustQC outputs by suffix pattern, so they work with either flat or nested output.
 
 ### `test-data/rna/small/`
 

@@ -38,7 +38,7 @@ nextflow_process {
             // differences between RustQC and upstream RSeQC due to different
             // region assignment implementations. We check structure, not exact values.
             def actualLines = path(actualFile).readLines()
-            def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/read_distribution.txt").readLines()
+            def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/read_distribution/read_distribution.txt").readLines()
             assert actualLines.size() > 5 : "read_distribution.txt has too few lines: ${actualLines.size()}"
             // Check that the same genomic feature categories appear
             def actualFeatures = actualLines.findAll { it.trim() && !it.startsWith('=') && !it.startsWith('Group') && !it.startsWith('Total') }.collect { it.split(/\s+/)[0] }.sort()
