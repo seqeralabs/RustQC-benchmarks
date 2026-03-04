@@ -43,7 +43,7 @@ process RUSTQC_RNA {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p output/dupradar output/featurecounts \\
+    mkdir -p output/dupradar output/featurecounts output/qualimap \\
         output/rseqc/bam_stat output/rseqc/infer_experiment \\
         output/rseqc/read_duplication output/rseqc/read_distribution \\
         output/rseqc/junction_annotation output/rseqc/junction_saturation \\
@@ -53,6 +53,7 @@ process RUSTQC_RNA {
     touch output/dupradar/${prefix}_intercept_slope.txt
     touch output/featurecounts/${prefix}.featureCounts.tsv
     touch output/featurecounts/${prefix}.featureCounts.tsv.summary
+    touch output/qualimap/rnaseq_qc_results.txt
     touch output/rseqc/bam_stat/${prefix}.bam_stat.txt
     touch output/rseqc/infer_experiment/${prefix}.infer_experiment.txt
     touch output/rseqc/read_duplication/${prefix}.pos.DupRate.xls

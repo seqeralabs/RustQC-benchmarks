@@ -15,6 +15,11 @@
                         "git_sha": "b80fa93d646109e3dc86e79010bf7c0b0af8ce29",
                         "installed_by": ["modules"]
                     },
+                    "qualimap/rnaseq": {
+                        "branch": "master",
+                        "git_sha": "1d2684a52df064573979f069272122fc73e02662",
+                        "installed_by": ["modules"]
+                    },
                     "rseqc/bamstat": {
                         "branch": "master",
                         "git_sha": "0145202ae8a9f39a4e7c533f667c38989af799b2",
@@ -63,6 +68,11 @@
                     "samtools/index": {
                         "branch": "master",
                         "git_sha": "1d2fbdcbca677bbe8da0f9d0d2bb7c02f2cab1c9",
+                        "installed_by": ["modules"]
+                    },
+                    "samtools/sort": {
+                        "branch": "master",
+                        "git_sha": "5cb9a8694da0a0e550921636bb60bc8c56445fd7",
                         "installed_by": ["modules"]
                     },
                     "samtools/stats": {

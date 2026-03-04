@@ -9,20 +9,22 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { RUSTQC_RNA             } from '../modules/local/rustqc_rna'
 
 // nf-core modules: upstream reference tools
-include { DUPRADAR                   } from '../modules/nf-core/dupradar/main'
-include { PRESEQ_LCEXTRAP            } from '../modules/nf-core/preseq/lcextrap/main'
-include { SUBREAD_FEATURECOUNTS      } from '../modules/nf-core/subread/featurecounts/main'
-include { RSEQC_BAMSTAT              } from '../modules/nf-core/rseqc/bamstat/main'
-include { RSEQC_INFEREXPERIMENT      } from '../modules/nf-core/rseqc/inferexperiment/main'
-include { RSEQC_READDUPLICATION      } from '../modules/nf-core/rseqc/readduplication/main'
-include { RSEQC_READDISTRIBUTION     } from '../modules/nf-core/rseqc/readdistribution/main'
-include { RSEQC_JUNCTIONANNOTATION   } from '../modules/nf-core/rseqc/junctionannotation/main'
-include { RSEQC_JUNCTIONSATURATION   } from '../modules/nf-core/rseqc/junctionsaturation/main'
-include { RSEQC_INNERDISTANCE        } from '../modules/nf-core/rseqc/innerdistance/main'
-include { SAMTOOLS_FLAGSTAT          } from '../modules/nf-core/samtools/flagstat/main'
-include { SAMTOOLS_IDXSTATS          } from '../modules/nf-core/samtools/idxstats/main'
-include { SAMTOOLS_INDEX             } from '../modules/nf-core/samtools/index/main'
-include { SAMTOOLS_STATS             } from '../modules/nf-core/samtools/stats/main'
+include { DUPRADAR                                } from '../modules/nf-core/dupradar/main'
+include { PRESEQ_LCEXTRAP                         } from '../modules/nf-core/preseq/lcextrap/main'
+include { QUALIMAP_RNASEQ                         } from '../modules/nf-core/qualimap/rnaseq/main'
+include { SUBREAD_FEATURECOUNTS                   } from '../modules/nf-core/subread/featurecounts/main'
+include { RSEQC_BAMSTAT                           } from '../modules/nf-core/rseqc/bamstat/main'
+include { RSEQC_INFEREXPERIMENT                   } from '../modules/nf-core/rseqc/inferexperiment/main'
+include { RSEQC_READDUPLICATION                   } from '../modules/nf-core/rseqc/readduplication/main'
+include { RSEQC_READDISTRIBUTION                  } from '../modules/nf-core/rseqc/readdistribution/main'
+include { RSEQC_JUNCTIONANNOTATION                } from '../modules/nf-core/rseqc/junctionannotation/main'
+include { RSEQC_JUNCTIONSATURATION                } from '../modules/nf-core/rseqc/junctionsaturation/main'
+include { RSEQC_INNERDISTANCE                     } from '../modules/nf-core/rseqc/innerdistance/main'
+include { SAMTOOLS_FLAGSTAT                       } from '../modules/nf-core/samtools/flagstat/main'
+include { SAMTOOLS_IDXSTATS                       } from '../modules/nf-core/samtools/idxstats/main'
+include { SAMTOOLS_INDEX                          } from '../modules/nf-core/samtools/index/main'
+include { SAMTOOLS_SORT as SAMTOOLS_SORT_QUALIMAP } from '../modules/nf-core/samtools/sort/main'
+include { SAMTOOLS_STATS                          } from '../modules/nf-core/samtools/stats/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -106,6 +108,18 @@ workflow RUSTQC_BENCHMARKS {
 
             // featureCounts: tuple(meta, bams, annotation) — all in one tuple
             SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
+
+            // Qualimap: name-sort BAM first (performance optimisation), then run qualimap rnaseq
+            // Mirrors nf-core/rnaseq: SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
+            SAMTOOLS_SORT_QUALIMAP(
+                ch_bam,
+                channel.value([ [:], [] ]),
+                ''
+            )
+            QUALIMAP_RNASEQ(
+                SAMTOOLS_SORT_QUALIMAP.out.bam,
+                channel.value([ [:], gtf_file ])
+            )
         }
 
         // Tools that require BAI + BED gene model
