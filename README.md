@@ -153,7 +153,7 @@ nextflow run main.nf -profile rna_test,docker --run_upstream
 ### Running on Seqera Platform
 
 Launch the pipeline from Seqera Platform using the pre-configured test profiles.
-Both profiles set `strandedness = 'unstranded'` (correct for the bundled test data).
+Both profiles set `strandedness = 'reverse'` (matching the library prep of the bundled test data).
 
 **Small test** (local test data, ~7 MB BAM):
 
@@ -175,9 +175,9 @@ Parameters:  --run_upstream true
 
 > **Strandedness is not auto-detected.**
 > This pipeline takes a pre-aligned BAM as input, so there is no Salmon-based strandedness
-> inference like nf-core/rnaseq. The test profiles default to `unstranded`.
-> When running with your own data, set `--strandedness forward` or `--strandedness reverse`
-> if appropriate — this affects Qualimap, dupRadar, and RustQC output.
+> inference like nf-core/rnaseq. The test profiles default to `reverse`.
+> When running with your own data, set `--strandedness` to match your library prep
+> (`reverse`, `forward`, or `unstranded`) — this affects Qualimap, dupRadar, and RustQC output.
 
 ### Use a local RustQC binary
 
