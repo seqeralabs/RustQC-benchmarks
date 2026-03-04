@@ -9,6 +9,8 @@ Initial release of ewels/rustqc-benchmarks, created with the [nf-core](https://n
 
 ### `Added`
 
+- Add Qualimap rnaseq upstream module with name-sorted BAM (via `SAMTOOLS_SORT_QUALIMAP`) to the benchmarking pipeline
+
 ### `Fixed`
 
 ### `Dependencies`

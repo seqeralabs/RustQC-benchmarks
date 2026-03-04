@@ -9,7 +9,7 @@ Validation suite for [RustQC](https://github.com/ewels/RustQC) -- comparing its 
 
 RustQC reimplements common RNA-seq QC tools in Rust. This repository:
 
-1. **Generates reference outputs** from the original upstream tools (RSeQC, dupRadar, featureCounts, preseq, samtools)
+1. **Generates reference outputs** from the original upstream tools (RSeQC, dupRadar, featureCounts, Qualimap, preseq, samtools)
 2. **Runs RustQC** on the same input data
 3. **Compares outputs** between RustQC and upstream tools, with per-tool tolerance rules
 4. **Tracks regressions** via nf-test snapshots -- if RustQC output changes, the snapshot test fails
@@ -29,6 +29,7 @@ All upstream tools are run via standard [nf-core modules](https://nf-co.re/modul
 | junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | Row-sorted TSV + BED comparison    |
 | junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Structural check (stochastic tool) |
 | inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | TSV match, 0.1 relative tolerance  |
+| qualimap            | [Qualimap rnaseq](http://qualimap.conesalab.org/)                        | _comparison TBD_                   |
 | preseq              | [preseq lc_extrap](http://smithlabresearch.org/software/preseq/)         | _comparison TBD_                   |
 
 ## How it works
@@ -75,7 +76,7 @@ tests/
   rna/rustqc/                 9 nf-test files, one per RustQC tool output
   rna/pipeline.nf.test        Smoke test for the full workflow
 modules/local/rustqc_rna.nf  RustQC Nextflow process definition
-modules/nf-core/              12 upstream tool modules (dupradar, rseqc/*, subread, samtools)
+modules/nf-core/              14 upstream tool modules (dupradar, qualimap, rseqc/*, subread, samtools)
 workflows/rustqc-benchmarks.nf  Main pipeline workflow
 conf/
   rna_test.config             Small dataset parameters
@@ -125,14 +126,14 @@ nf-test test --tag rna --verbose
 
 Every test has multiple tags so you can slice in different ways:
 
-| Tag                                          | What it selects                              |
-| -------------------------------------------- | -------------------------------------------- |
-| `upstream`                                   | All 9 upstream nf-core module tests          |
-| `rustqc`                                     | All 9 RustQC comparison tests                |
-| `rna`                                        | All RNA tests (upstream + rustqc + pipeline) |
-| `small`                                      | Small dataset tests                          |
-| `bam_stat`, `dupradar`, `featurecounts`, ... | Both upstream + rustqc tests for that tool   |
-| `pipeline`                                   | Pipeline-level smoke test                    |
+| Tag                                                      | What it selects                              |
+| -------------------------------------------------------- | -------------------------------------------- |
+| `upstream`                                               | All 9 upstream nf-core module tests          |
+| `rustqc`                                                 | All 9 RustQC comparison tests                |
+| `rna`                                                    | All RNA tests (upstream + rustqc + pipeline) |
+| `small`                                                  | Small dataset tests                          |
+| `bam_stat`, `dupradar`, `featurecounts`, `qualimap`, ... | Both upstream + rustqc tests for that tool   |
+| `pipeline`                                               | Pipeline-level smoke test                    |
 
 ## Running the pipeline directly
 
