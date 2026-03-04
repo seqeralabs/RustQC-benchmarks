@@ -9,7 +9,7 @@ process RUSTQC_RNA {
     path gtf
 
     output:
-    tuple val(meta), path("output/**"), emit: results
+    tuple val(meta), path("rustqc/**"), emit: results
     path "versions.yml",                emit: versions
 
     when:
@@ -28,7 +28,7 @@ process RUSTQC_RNA {
         --gtf ${gtf} \\
         ${paired_flag} \\
         -t ${task.cpus} \\
-        -o output \\
+        -o rustqc \\
         ${dup_flag} \\
         ${config_flag} \\
         ${biotype_flag} \\
@@ -43,27 +43,27 @@ process RUSTQC_RNA {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p output/dupradar output/featurecounts output/qualimap \\
-        output/rseqc/bam_stat output/rseqc/infer_experiment \\
-        output/rseqc/read_duplication output/rseqc/read_distribution \\
-        output/rseqc/junction_annotation output/rseqc/junction_saturation \\
-        output/rseqc/inner_distance
+    mkdir -p rustqc/dupradar rustqc/featurecounts rustqc/qualimap \\
+        rustqc/rseqc/bam_stat rustqc/rseqc/infer_experiment \\
+        rustqc/rseqc/read_duplication rustqc/rseqc/read_distribution \\
+        rustqc/rseqc/junction_annotation rustqc/rseqc/junction_saturation \\
+        rustqc/rseqc/inner_distance
 
-    touch output/dupradar/${prefix}_dupMatrix.txt
-    touch output/dupradar/${prefix}_intercept_slope.txt
-    touch output/featurecounts/${prefix}.featureCounts.tsv
-    touch output/featurecounts/${prefix}.featureCounts.tsv.summary
-    touch output/qualimap/rnaseq_qc_results.txt
-    touch output/rseqc/bam_stat/${prefix}.bam_stat.txt
-    touch output/rseqc/infer_experiment/${prefix}.infer_experiment.txt
-    touch output/rseqc/read_duplication/${prefix}.pos.DupRate.xls
-    touch output/rseqc/read_duplication/${prefix}.seq.DupRate.xls
-    touch output/rseqc/read_distribution/${prefix}.read_distribution.txt
-    touch output/rseqc/junction_annotation/${prefix}.junction.bed
-    touch output/rseqc/junction_annotation/${prefix}.junction.xls
-    touch output/rseqc/junction_saturation/${prefix}.junctionSaturation_plot.r
-    touch output/rseqc/inner_distance/${prefix}.inner_distance.txt
-    touch output/rseqc/inner_distance/${prefix}.inner_distance_freq.txt
+    touch rustqc/dupradar/${prefix}_dupMatrix.txt
+    touch rustqc/dupradar/${prefix}_intercept_slope.txt
+    touch rustqc/featurecounts/${prefix}.featureCounts.tsv
+    touch rustqc/featurecounts/${prefix}.featureCounts.tsv.summary
+    touch rustqc/qualimap/rnaseq_qc_results.txt
+    touch rustqc/rseqc/bam_stat/${prefix}.bam_stat.txt
+    touch rustqc/rseqc/infer_experiment/${prefix}.infer_experiment.txt
+    touch rustqc/rseqc/read_duplication/${prefix}.pos.DupRate.xls
+    touch rustqc/rseqc/read_duplication/${prefix}.seq.DupRate.xls
+    touch rustqc/rseqc/read_distribution/${prefix}.read_distribution.txt
+    touch rustqc/rseqc/junction_annotation/${prefix}.junction.bed
+    touch rustqc/rseqc/junction_annotation/${prefix}.junction.xls
+    touch rustqc/rseqc/junction_saturation/${prefix}.junctionSaturation_plot.r
+    touch rustqc/rseqc/inner_distance/${prefix}.inner_distance.txt
+    touch rustqc/rseqc/inner_distance/${prefix}.inner_distance_freq.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
