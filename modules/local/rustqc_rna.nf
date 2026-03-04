@@ -1,6 +1,6 @@
 process RUSTQC_RNA {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_high'
 
     container "${params.rustqc_image ?: 'ghcr.io/seqeralabs/rustqc:dev'}"
 
