@@ -3,7 +3,7 @@
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.04.0-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D)](https://www.nextflow.io/)
 
-Validation suite for [RustQC](https://github.com/ewels/RustQC) -- comparing its outputs against the upstream bioinformatics tools it reimplements.
+Validation suite for [RustQC](https://github.com/seqeralabs/RustQC) -- comparing its outputs against the upstream bioinformatics tools it reimplements.
 
 ## What this repo does
 
@@ -158,7 +158,7 @@ Both profiles set `strandedness = 'unstranded'` (correct for the bundled test da
 **Small test** (local test data, ~7 MB BAM):
 
 ```
-Pipeline:    https://github.com/ewels/rustqc-benchmarks
+Pipeline:    https://github.com/seqeralabs/rustqc-benchmarks
 Revision:    main
 Profile:     rna_test,docker
 Parameters:  --run_upstream true
@@ -167,7 +167,7 @@ Parameters:  --run_upstream true
 **Large test** (GM12878 markdup-sorted BAM from nf-core/rnaseq megatests, ~8 GB):
 
 ```
-Pipeline:    https://github.com/ewels/rustqc-benchmarks
+Pipeline:    https://github.com/seqeralabs/rustqc-benchmarks
 Revision:    main
 Profile:     rna_test_full,docker
 Parameters:  --run_upstream true
@@ -189,18 +189,18 @@ nextflow run main.nf -profile rna_test,docker \
 
 ### Key parameters
 
-| Parameter         | Default                    | Description                                  |
-| ----------------- | -------------------------- | -------------------------------------------- |
-| `--run_rustqc`    | `true`                     | Run RustQC                                   |
-| `--run_upstream`  | `false`                    | Run upstream reference tools                 |
-| `--rustqc_image`  | `ghcr.io/ewels/rustqc:dev` | RustQC Docker image                          |
-| `--rustqc_binary` | `null`                     | Local RustQC binary (overrides Docker)       |
-| `--bam` / `--bai` | _(from profile)_           | Input BAM and index                          |
-| `--gtf` / `--bed` | _(from profile)_           | GTF annotation and BED gene model            |
-| `--sample_id`     | `test`                     | Sample identifier (used in output filenames) |
-| `--paired`        | `true`                     | Paired-end data                              |
-| `--strandedness`  | `unstranded`               | Library strandedness                         |
-| `--outdir`        | `results`                  | Output directory                             |
+| Parameter         | Default                         | Description                                  |
+| ----------------- | ------------------------------- | -------------------------------------------- |
+| `--run_rustqc`    | `true`                          | Run RustQC                                   |
+| `--run_upstream`  | `false`                         | Run upstream reference tools                 |
+| `--rustqc_image`  | `ghcr.io/seqeralabs/rustqc:dev` | RustQC Docker image                          |
+| `--rustqc_binary` | `null`                          | Local RustQC binary (overrides Docker)       |
+| `--bam` / `--bai` | _(from profile)_                | Input BAM and index                          |
+| `--gtf` / `--bed` | _(from profile)_                | GTF annotation and BED gene model            |
+| `--sample_id`     | `test`                          | Sample identifier (used in output filenames) |
+| `--paired`        | `true`                          | Paired-end data                              |
+| `--strandedness`  | `unstranded`                    | Library strandedness                         |
+| `--outdir`        | `results`                       | Output directory                             |
 
 ## Updating snapshots
 

@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the ewels/rustqc-benchmarks pipeline
+// Subworkflow with functionality specific to the seqeralabs/rustqc-benchmarks pipeline
 //
 
 /*

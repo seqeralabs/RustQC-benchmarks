@@ -44,7 +44,7 @@ lint:
   included_configs: false
 
 template:
-  org: ewels
+  org: seqeralabs
   name: rustqc-benchmarks
   description: Benchmark suite for validating RustQC outputs against upstream bioinformatics
     tools

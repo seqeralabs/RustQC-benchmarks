@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/ewels/rustqc-benchmarks/main/nextflow_schema.json",
-    "title": "ewels/rustqc-benchmarks pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/seqeralabs/rustqc-benchmarks/main/nextflow_schema.json",
+    "title": "seqeralabs/rustqc-benchmarks pipeline parameters",
     "description": "Benchmark suite for validating RustQC outputs against upstream bioinformatics tools",
     "type": "object",
     "$defs": {
@@ -94,7 +94,7 @@
             "properties": {
                 "rustqc_image": {
                     "type": "string",
-                    "default": "ghcr.io/ewels/rustqc:latest",
+                    "default": "ghcr.io/seqeralabs/rustqc:dev",
                     "description": "Docker image for RustQC."
                 },
                 "rustqc_binary": {

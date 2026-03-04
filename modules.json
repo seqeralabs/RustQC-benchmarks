@@ -1,6 +1,6 @@
 {
-    "name": "ewels/rustqc-benchmarks",
-    "homePage": "https://github.com/ewels/rustqc-benchmarks",
+    "name": "seqeralabs/rustqc-benchmarks",
+    "homePage": "https://github.com/seqeralabs/rustqc-benchmarks",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {

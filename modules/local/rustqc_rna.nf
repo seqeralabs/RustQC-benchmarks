@@ -2,7 +2,7 @@ process RUSTQC_RNA {
     tag "$meta.id"
     label 'process_medium'
 
-    container "${params.rustqc_image ?: 'ghcr.io/ewels/rustqc:dev'}"
+    container "${params.rustqc_image ?: 'ghcr.io/seqeralabs/rustqc:dev'}"
 
     input:
     tuple val(meta), path(bam), path(bai)
