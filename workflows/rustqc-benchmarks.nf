@@ -9,6 +9,7 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { RUSTQC_RNA             } from '../modules/local/rustqc_rna'
 
 // nf-core modules: upstream reference tools
+include { GUNZIP as GUNZIP_GTF                    } from '../modules/nf-core/gunzip/main'
 include { DUPRADAR                                } from '../modules/nf-core/dupradar/main'
 include { PRESEQ_LCEXTRAP                         } from '../modules/nf-core/preseq/lcextrap/main'
 include { QUALIMAP_RNASEQ                         } from '../modules/nf-core/qualimap/rnaseq/main'
@@ -109,8 +110,14 @@ workflow RUSTQC_BENCHMARKS {
             // featureCounts: tuple(meta, bams, annotation) — all in one tuple
             SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
 
-            // Qualimap: name-sort BAM first (performance optimisation), then run qualimap rnaseq
-            // Mirrors nf-core/rnaseq: SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
+            // Qualimap: decompress GTF if gzipped, name-sort BAM, then run qualimap rnaseq
+            // Mirrors nf-core/rnaseq: GUNZIP_GTF -> SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
+            if (gtf_file.toString().endsWith('.gz')) {
+                GUNZIP_GTF(channel.value([ [:], gtf_file ]))
+                ch_qualimap_gtf = GUNZIP_GTF.out.gunzip
+            } else {
+                ch_qualimap_gtf = channel.value([ [:], gtf_file ])
+            }
             SAMTOOLS_SORT_QUALIMAP(
                 ch_bam,
                 channel.value([ [:], [] ]),
@@ -118,7 +125,7 @@ workflow RUSTQC_BENCHMARKS {
             )
             QUALIMAP_RNASEQ(
                 SAMTOOLS_SORT_QUALIMAP.out.bam,
-                channel.value([ [:], gtf_file ])
+                ch_qualimap_gtf
             )
         }
 
