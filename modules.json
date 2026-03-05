@@ -15,6 +15,11 @@
                         "git_sha": "96c57dfd98a0641886a67bd449fe33ee2ec0e374",
                         "installed_by": ["modules"]
                     },
+                    "multiqc": {
+                        "branch": "master",
+                        "git_sha": "2c73cc8fa92cf48de3da0b643fdf357a8a290b36",
+                        "installed_by": ["modules"]
+                    },
                     "preseq/lcextrap": {
                         "branch": "master",
                         "git_sha": "b80fa93d646109e3dc86e79010bf7c0b0af8ce29",
