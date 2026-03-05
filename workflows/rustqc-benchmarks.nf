@@ -8,6 +8,7 @@ include { paramsSummaryMultiqc;
           softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 
 // Local modules
+include { GTF2BED                } from '../modules/local/gtf2bed'
 include { RUSTQC_RNA             } from '../modules/local/rustqc_rna'
 
 // nf-core modules
@@ -73,12 +74,40 @@ workflow RUSTQC_BENCHMARKS {
     }
 
     //
+    // Decompress GTF if gzipped (shared across all GTF consumers)
+    //
+    if (gtf_file && gtf_file.toString().endsWith('.gz')) {
+        GUNZIP_GTF(channel.value([ [:], gtf_file ]))
+        ch_plain_gtf = GUNZIP_GTF.out.gunzip  // tuple(meta, gtf)
+    } else if (gtf_file) {
+        ch_plain_gtf = channel.value([ [:], gtf_file ])
+    } else {
+        ch_plain_gtf = channel.empty()
+    }
+
+    //
+    // Convert GTF to BED12 if no BED provided (same as nf-core/rnaseq)
+    //
+    if (bed_file) {
+        ch_bed = channel.value(bed_file)
+    } else if (gtf_file) {
+        GTF2BED(ch_plain_gtf.map{ _meta, f -> f })
+        ch_bed = GTF2BED.out.bed
+        ch_versions = ch_versions.mix(GTF2BED.out.versions)
+    } else {
+        ch_bed = channel.empty()
+    }
+
+    //
     // MODULE: RustQC RNA (single-pass, all tools)
+    // When both GTF and BED are available, pass --bed so read_distribution
+    // uses the same BED12 model as upstream RSeQC.
     //
     if (params.run_rustqc && gtf_file) {
         RUSTQC_RNA(
             ch_bam_bai,
             gtf_file,
+            ch_bed,
         )
         ch_versions      = ch_versions.mix(RUSTQC_RNA.out.versions)
         ch_multiqc_files = ch_multiqc_files.mix(RUSTQC_RNA.out.results.map{ _meta, files -> files })
@@ -119,14 +148,9 @@ workflow RUSTQC_BENCHMARKS {
             // featureCounts: tuple(meta, bams, annotation) — all in one tuple
             SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
 
-            // Qualimap: decompress GTF if gzipped, name-sort BAM, then run qualimap rnaseq
+            // Qualimap: name-sort BAM, then run qualimap rnaseq
             // Mirrors nf-core/rnaseq: GUNZIP_GTF -> SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
-            if (gtf_file.toString().endsWith('.gz')) {
-                GUNZIP_GTF(channel.value([ [:], gtf_file ]))
-                ch_qualimap_gtf = GUNZIP_GTF.out.gunzip
-            } else {
-                ch_qualimap_gtf = channel.value([ [:], gtf_file ])
-            }
+            // (GUNZIP_GTF already handled above for all GTF consumers)
             SAMTOOLS_SORT_QUALIMAP(
                 ch_bam,
                 channel.value([ [:], [] ]),
@@ -134,19 +158,18 @@ workflow RUSTQC_BENCHMARKS {
             )
             QUALIMAP_RNASEQ(
                 SAMTOOLS_SORT_QUALIMAP.out.bam,
-                ch_qualimap_gtf
+                ch_plain_gtf
             )
         }
 
         // Tools that require BAI + BED gene model
+        // Uses ch_bed which is either the user-provided BED or converted from GTF
         //
-        if (bed_file) {
-            RSEQC_INFEREXPERIMENT(ch_bam_bai, bed_file)
-            RSEQC_READDISTRIBUTION(ch_bam_bai, bed_file)
-            RSEQC_JUNCTIONANNOTATION(ch_bam_bai, bed_file)
-            RSEQC_JUNCTIONSATURATION(ch_bam_bai, bed_file)
-            RSEQC_INNERDISTANCE(ch_bam_bai, bed_file)
-        }
+        RSEQC_INFEREXPERIMENT(ch_bam_bai, ch_bed)
+        RSEQC_READDISTRIBUTION(ch_bam_bai, ch_bed)
+        RSEQC_JUNCTIONANNOTATION(ch_bam_bai, ch_bed)
+        RSEQC_JUNCTIONSATURATION(ch_bam_bai, ch_bed)
+        RSEQC_INNERDISTANCE(ch_bam_bai, ch_bed)
 
         //
         // Collect upstream tool outputs for MultiQC
@@ -165,13 +188,12 @@ workflow RUSTQC_BENCHMARKS {
             ch_multiqc_files = ch_multiqc_files.mix(QUALIMAP_RNASEQ.out.results.collect{ _meta, f -> f })
         }
 
-        if (bed_file) {
-            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INFEREXPERIMENT.out.txt.collect{ _meta, f -> f })
-            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_READDISTRIBUTION.out.txt.collect{ _meta, f -> f })
-            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONANNOTATION.out.log.collect{ _meta, f -> f })
-            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONSATURATION.out.rscript.collect{ _meta, f -> f })
-            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INNERDISTANCE.out.freq.collect{ _meta, f -> f })
-        }
+        // BED-dependent RSeQC tools: ch_bed is either user-provided or GTF-derived
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INFEREXPERIMENT.out.txt.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_READDISTRIBUTION.out.txt.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONANNOTATION.out.log.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONSATURATION.out.rscript.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INNERDISTANCE.out.freq.collect{ _meta, f -> f })
     }
 
     //
