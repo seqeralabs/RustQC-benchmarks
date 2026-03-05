@@ -11,21 +11,21 @@ This document is a guide for working on the RustQC codebase to resolve the discr
 
 ### P0 — Critical (behaviour is clearly wrong)
 
-| #   | Issue                                                                                | Affected tools                                                | Impact                                                             |
-| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 1   | [Unmapped reads skipped](#1-unmapped-reads-skipped)                                  | samtools, bam_stat, infer_experiment, featurecounts, qualimap | All read counts wrong on BAMs with unmapped reads                  |
-| 2   | [Qualimap strandedness always reports non-strand-specific](#2-qualimap-strandedness) | qualimap                                                      | Metrics computed with wrong protocol                               |
-| 3   | [featureCounts output granularity wrong](#3-featurecounts-output-granularity)        | featurecounts                                                 | Per-biotype grouping vs per-gene; Assigned/Ambiguity counts differ |
+| #   | Issue                                                                                                 | Affected tools                                                | Impact                                                             |
+| --- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1   | ~~[Unmapped reads skipped](#1-unmapped-reads-skipped)~~ **RESOLVED**                                  | samtools, bam_stat, infer_experiment, featurecounts, qualimap | All read counts wrong on BAMs with unmapped reads                  |
+| 2   | ~~[Qualimap strandedness always reports non-strand-specific](#2-qualimap-strandedness)~~ **RESOLVED** | qualimap                                                      | Metrics computed with wrong protocol                               |
+| 3   | ~~[featureCounts output granularity wrong](#3-featurecounts-output-granularity)~~ **RESOLVED**        | featurecounts                                                 | Per-biotype grouping vs per-gene; Assigned/Ambiguity counts differ |
 
 ### P1 — Significant (numeric results differ)
 
-| #   | Issue                                                                                  | Affected tools            | Impact                                                                                                   |
-| --- | -------------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------- |
-| 4   | [read_distribution region definitions differ](#4-read_distribution-region-definitions) | rseqc/read_distribution   | Tag counts and region lengths differ substantially                                                       |
-| 5   | [dupradar count differences](#5-dupradar-count-differences)                            | dupradar                  | Some gene counts differ; intercept/slope values change                                                   |
-| 6   | [preseq curve differs entirely](#6-preseq-curve)                                       | preseq                    | Library complexity extrapolation values all different                                                    |
-| 7   | [inner_distance values differ](#7-inner_distance)                                      | rseqc/inner_distance      | 1–2 bp offsets in individual pairs; freq bins differ; full dataset shows 10× count difference (sampling) |
-| 8   | [junction_annotation coordinate offsets](#8-junction_annotation)                       | rseqc/junction_annotation | ±1 bp coordinates; junction merging differences                                                          |
+| #   | Issue                                                                                                   | Affected tools            | Impact                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 4   | ~~[read_distribution region definitions differ](#4-read_distribution-region-definitions)~~ **RESOLVED** | rseqc/read_distribution   | Tag counts and region lengths differ substantially — fixed via GTF2BED providing correct BED to RustQC     |
+| 5   | ~~[dupradar count differences](#5-dupradar-count-differences)~~ **RESOLVED**                            | dupradar                  | Some gene counts differ; intercept/slope values change                                                     |
+| 6   | [preseq curve differs entirely](#6-preseq-curve) — **Round 2 fix applied**                              | preseq                    | Library complexity extrapolation values all different; Round 2 fix addressed algorithm parameter alignment |
+| 7   | [inner_distance values differ](#7-inner_distance)                                                       | rseqc/inner_distance      | 1–2 bp offsets in individual pairs; freq bins differ; full dataset shows 10× count difference (sampling)   |
+| 8   | [junction_annotation coordinate offsets](#8-junction_annotation)                                        | rseqc/junction_annotation | ±1 bp coordinates; junction merging differences                                                            |
 
 ### P2 — Minor (format/cosmetic)
 
@@ -108,21 +108,15 @@ This document is a guide for working on the RustQC codebase to resolve the discr
 
 ---
 
-### 4. read_distribution region definitions
+### 4. read_distribution region definitions — RESOLVED
 
 **Symptom:** Total assigned tags differ (66,693 vs 67,783 in `rna_small`; 54.1M vs 53.4M in `rna_large`). Region lengths differ dramatically — e.g. 5'UTR region is 1,437,256 bases upstream vs 403,926 in RustQC. CDS_Exons region is 99.8M vs 39.0M in `rna_large`.
 
-**Where to look:**
+**Resolution:** The root cause was that RustQC's `read_distribution` was using GTF-derived gene models directly, while upstream RSeQC uses a BED gene model. The fix involved:
 
-- GTF/BED parsing and gene model flattening in `read_distribution`. Upstream `read_distribution.py` builds a gene model from the BED file, flattening overlapping exons/UTRs.
-- Check how RustQC handles overlapping features, UTR/CDS boundary definitions, and multi-isoform genes.
-- The region length calculation — this is the total genomic span assigned to each feature type.
-
-**How to test:**
-
-1. Use the `rna_small` BED file (`chr6.bed`) and manually verify a few known genes' UTR/CDS spans against what RustQC calculates.
-2. Compare the gene model flattening logic against RSeQC's Python source (`read_distribution.py`).
-3. The existing nf-test only checks structure (column names), not values. Once fixed, tighten it to use `CompareUtils.tsvMatch()` with appropriate tolerance.
+1. Adding a **GTF2BED** local module that converts the GTF annotation to a BED gene model (matching the conversion used by nf-core/rnaseq).
+2. Passing the resulting BED file to RustQC via the new `--bed` flag, giving read_distribution parity with upstream RSeQC's gene model flattening.
+3. The shared `ch_bed` channel now provides this BED file to all BED-dependent tools.
 
 ---
 
@@ -144,21 +138,17 @@ This document is a guide for working on the RustQC codebase to resolve the discr
 
 ---
 
-### 6. preseq curve
+### 6. preseq curve — Round 2 fix applied
 
 **Symptom:** The entire library complexity extrapolation curve differs. Same column structure but all values different.
 
-**Where to look:**
+**Round 2 fix details:** After resolving P0 #1 (unmapped reads), the preseq curve was re-evaluated. A Round 2 fix was applied to align algorithm parameters (step size, extrapolation factor, bootstrap replicates) with upstream `preseq lc_extrap` defaults. The curve values are now closer to upstream but may still show minor differences due to inherent stochasticity in the bootstrapping approach. Further tolerance tuning may be needed.
 
-- RustQC's preseq implementation — the `lc_extrap` algorithm, step size, extrapolation factor, bootstrapping parameters.
-- Check if the random seed or number of bootstrap replicates differs.
-- The unmapped read issue (P0 #1) may also affect this since different total read counts feed into the extrapolation.
+**Remaining investigation:**
 
-**How to test:**
-
-1. Fix the unmapped read issue first, then re-test.
-2. Compare algorithm parameters (step size, max extrapolation, bootstraps) against `preseq lc_extrap` defaults.
-3. No nf-test exists for preseq — consider adding one.
+- Verify bootstrap random seed handling matches upstream behaviour.
+- Monitor whether differences remain within acceptable tolerance on the full dataset.
+- Consider adding an nf-test for preseq with appropriate tolerance.
 
 ---
 
@@ -228,15 +218,22 @@ The benchmarking pipeline already has:
 - **nf-test** framework with per-tool tests under `tests/rna/rustqc/` and `tests/rna/upstream/`
 - **CompareUtils.groovy** (`tests/lib/`) providing `tsvMatch()` (with tolerance), `textMatch()` (with prefix filtering), `fileMinSize()`
 - **Snapshots** under `snapshots/rna/small/` for regression testing
+- **GTF2BED module** that auto-derives BED from GTF, ensuring read_distribution uses the correct gene model
 
-### Recommended approach
+### Current status
 
-1. **Fix P0 issues first** — they cascade into other tools:
-   - Unmapped reads (#1) → re-run and re-compare everything
-   - Qualimap strandedness (#2) → re-compare qualimap outputs
-   - featureCounts granularity (#3) → re-compare featurecounts outputs
+P0 issues #1–3 and P1 issues #4–5 are **RESOLVED**. P1 #6 (preseq) has a Round 2 fix applied and is under monitoring. Remaining P1 issues (#7, #8) and P2 issues are still open.
 
-2. **After each fix, re-run the benchmarking pipeline** on both profiles:
+### Recommended approach (updated)
+
+1. ~~**Fix P0 issues first**~~ — **DONE**: Unmapped reads (#1), Qualimap strandedness (#2), and featureCounts granularity (#3) are all resolved.
+
+2. **Focus on remaining P1 issues:**
+   - inner_distance (#7) — verify sampling behaviour and 1–2 bp offset root cause
+   - junction_annotation (#8) — verify coordinate system and merging logic
+   - preseq (#6) — monitor Round 2 fix results, tune tolerance
+
+3. **After each fix, re-run the benchmarking pipeline** on both profiles:
 
    ```bash
    # Small test (local, fast)
@@ -246,12 +243,12 @@ The benchmarking pipeline already has:
    nextflow run main.nf -profile rna_test_full,docker --run_upstream true
    ```
 
-3. **Update nf-tests and snapshots** as fixes land:
-   - Tighten tolerances where currently loose (e.g. read_distribution only checks structure)
+4. **Update nf-tests and snapshots** as fixes land:
+   - Tighten tolerances where currently loose (e.g. read_distribution now has GTF2BED-derived BED — verify tolerances)
    - Add missing nf-tests for samtools, qualimap, preseq
    - Update snapshots: `nf-test test --update-snapshot`
 
-4. **Add a test BAM with unmapped reads** to `test-data/rna/small/` to catch regression on issue #1.
+5. **Add a test BAM with unmapped reads** to `test-data/rna/small/` to catch regression on issue #1.
 
 ### Verification checklist
 

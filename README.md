@@ -36,6 +36,10 @@ All upstream tools are run via standard [nf-core modules](https://nf-co.re/modul
 
 There are two layers of tests, both using [nf-test](https://www.nf-test.com):
 
+### GTF→BED conversion
+
+When no `--bed` file is provided, the pipeline automatically derives a BED gene model from the GTF annotation using the **GTF2BED** local module. This BED file (`ch_bed`) is then used for all BED-dependent RSeQC tools (read_distribution, inner_distance, junction_annotation, junction_saturation) and is also passed to RustQC via the `--bed` flag for read_distribution parity.
+
 ### Upstream tests (`tests/rna/upstream/`)
 
 Each test runs one nf-core module (e.g. `RSEQC_BAMSTAT`) against the small test dataset and snapshots the output. This captures what the upstream tool produces so we can detect if _upstream_ changes.
@@ -76,6 +80,8 @@ tests/
   rna/rustqc/                 9 nf-test files, one per RustQC tool output
   rna/pipeline.nf.test        Smoke test for the full workflow
 modules/local/rustqc_rna.nf  RustQC Nextflow process definition
+modules/local/gtf2bed/       GTF2BED module (converts GTF to BED gene model)
+bin/gtf2bed                  GTF2BED conversion script
 modules/nf-core/              14 upstream tool modules (dupradar, qualimap, rseqc/*, subread, samtools)
 workflows/rustqc-benchmarks.nf  Main pipeline workflow
 conf/
@@ -189,18 +195,19 @@ nextflow run main.nf -profile rna_test,docker \
 
 ### Key parameters
 
-| Parameter         | Default                         | Description                                  |
-| ----------------- | ------------------------------- | -------------------------------------------- |
-| `--run_rustqc`    | `true`                          | Run RustQC                                   |
-| `--run_upstream`  | `false`                         | Run upstream reference tools                 |
-| `--rustqc_image`  | `ghcr.io/seqeralabs/rustqc:dev` | RustQC Docker image                          |
-| `--rustqc_binary` | `null`                          | Local RustQC binary (overrides Docker)       |
-| `--bam` / `--bai` | _(from profile)_                | Input BAM and index                          |
-| `--gtf` / `--bed` | _(from profile)_                | GTF annotation and BED gene model            |
-| `--sample_id`     | `test`                          | Sample identifier (used in output filenames) |
-| `--paired`        | `true`                          | Paired-end data                              |
-| `--strandedness`  | `unstranded`                    | Library strandedness                         |
-| `--outdir`        | `results`                       | Output directory                             |
+| Parameter         | Default                         | Description                                                         |
+| ----------------- | ------------------------------- | ------------------------------------------------------------------- |
+| `--run_rustqc`    | `true`                          | Run RustQC                                                          |
+| `--run_upstream`  | `false`                         | Run upstream reference tools                                        |
+| `--rustqc_image`  | `ghcr.io/seqeralabs/rustqc:dev` | RustQC Docker image                                                 |
+| `--rustqc_binary` | `null`                          | Local RustQC binary (overrides Docker)                              |
+| `--bam` / `--bai` | _(from profile)_                | Input BAM and index                                                 |
+| `--gtf`           | _(from profile)_                | GTF annotation file                                                 |
+| `--bed`           | `null` _(optional)_             | BED gene model; auto-derived from GTF via GTF2BED when not provided |
+| `--sample_id`     | `test`                          | Sample identifier (used in output filenames)                        |
+| `--paired`        | `true`                          | Paired-end data                                                     |
+| `--strandedness`  | `unstranded`                    | Library strandedness                                                |
+| `--outdir`        | `results`                       | Output directory                                                    |
 
 ## Updating snapshots
 

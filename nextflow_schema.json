@@ -35,7 +35,7 @@
                 "bed": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "Path to BED gene model file (required for RSeQC tools).",
+                    "description": "Path to BED gene model file (optional). When not provided, a BED file is automatically derived from the GTF annotation via the GTF2BED module.",
                     "fa_icon": "fas fa-file-alt"
                 },
                 "outdir": {
