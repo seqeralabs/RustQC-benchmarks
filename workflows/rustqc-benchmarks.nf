@@ -3,10 +3,15 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
+include { paramsSummaryMap        } from 'plugin/nf-schema'
+include { paramsSummaryMultiqc;
+          softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 
 // Local modules
 include { RUSTQC_RNA             } from '../modules/local/rustqc_rna'
+
+// nf-core modules
+include { MULTIQC                                  } from '../modules/nf-core/multiqc/main'
 
 // nf-core modules: upstream reference tools
 include { GUNZIP as GUNZIP_GTF                    } from '../modules/nf-core/gunzip/main'
@@ -51,7 +56,8 @@ workflow RUSTQC_BENCHMARKS {
     def gtf_file = params.gtf ? file(params.gtf, checkIfExists: true) : null
     def bed_file = params.bed ? file(params.bed, checkIfExists: true) : null
 
-    ch_versions = channel.empty()
+    ch_versions       = channel.empty()
+    ch_multiqc_files  = channel.empty()
     ch_bam = channel.value([ meta, bam_file ])
 
     //
@@ -74,7 +80,8 @@ workflow RUSTQC_BENCHMARKS {
             ch_bam_bai,
             gtf_file,
         )
-        ch_versions = ch_versions.mix(RUSTQC_RNA.out.versions)
+        ch_versions      = ch_versions.mix(RUSTQC_RNA.out.versions)
+        ch_multiqc_files = ch_multiqc_files.mix(RUSTQC_RNA.out.results.map{ _meta, files -> files })
     }
 
     //
@@ -140,12 +147,37 @@ workflow RUSTQC_BENCHMARKS {
             RSEQC_JUNCTIONSATURATION(ch_bam_bai, bed_file)
             RSEQC_INNERDISTANCE(ch_bam_bai, bed_file)
         }
+
+        //
+        // Collect upstream tool outputs for MultiQC
+        //
+        ch_multiqc_files = ch_multiqc_files.mix(PRESEQ_LCEXTRAP.out.lc_extrap.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_BAMSTAT.out.txt.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_READDUPLICATION.out.pos_xls.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_READDUPLICATION.out.seq_xls.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_FLAGSTAT.out.flagstat.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_IDXSTATS.out.idxstats.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_STATS.out.stats.collect{ _meta, f -> f })
+
+        if (gtf_file) {
+            ch_multiqc_files = ch_multiqc_files.mix(DUPRADAR.out.multiqc.collect{ _meta, f -> f })
+            ch_multiqc_files = ch_multiqc_files.mix(SUBREAD_FEATURECOUNTS.out.summary.collect{ _meta, f -> f })
+            ch_multiqc_files = ch_multiqc_files.mix(QUALIMAP_RNASEQ.out.results.collect{ _meta, f -> f })
+        }
+
+        if (bed_file) {
+            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INFEREXPERIMENT.out.txt.collect{ _meta, f -> f })
+            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_READDISTRIBUTION.out.txt.collect{ _meta, f -> f })
+            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONANNOTATION.out.log.collect{ _meta, f -> f })
+            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONSATURATION.out.rscript.collect{ _meta, f -> f })
+            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INNERDISTANCE.out.freq.collect{ _meta, f -> f })
+        }
     }
 
     //
     // Collate and save software versions
     //
-    softwareVersionsToYAML(ch_versions)
+    ch_collated_versions = softwareVersionsToYAML(ch_versions)
         .collectFile(
             storeDir: "${params.outdir}/pipeline_info",
             name:  'rustqc_benchmarks_software_versions.yml',
@@ -153,8 +185,35 @@ workflow RUSTQC_BENCHMARKS {
             newLine: true
         )
 
+    //
+    // MODULE: MultiQC
+    //
+    ch_multiqc_config        = channel.fromPath("$projectDir/assets/multiqc_config.yml", checkIfExists: true)
+    ch_multiqc_custom_config = params.multiqc_config ? channel.fromPath(params.multiqc_config) : channel.empty()
+    ch_multiqc_logo          = params.multiqc_logo   ? channel.fromPath(params.multiqc_logo)   : channel.empty()
+
+    ch_workflow_summary = channel.value(
+        paramsSummaryMultiqc(
+            paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
+        )
+    ).collectFile(name: 'workflow_summary_mqc.yaml')
+
+    ch_multiqc_files = ch_multiqc_files
+        .mix(ch_collated_versions)
+        .mix(ch_workflow_summary)
+
+    MULTIQC(
+        [ [id: 'multiqc'], ch_multiqc_files.collect() ],
+        ch_multiqc_config.toList(),
+        ch_multiqc_custom_config.toList(),
+        ch_multiqc_logo.toList(),
+        [],
+        [],
+    )
+
     emit:
-    versions = ch_versions
+    multiqc_report = MULTIQC.out.report
+    versions       = ch_versions
 }
 
 /*
