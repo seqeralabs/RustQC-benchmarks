@@ -1,3 +1,206 @@
 reports:
   samplesheet.csv:
     display: "Auto-created samplesheet with collated metadata and FASTQ paths"
+
+  ## =====================
+  ##  HTML Reports
+  ## =====================
+
+  # Qualimap (upstream)
+  "**/qualimap/**/qualimapReport.html":
+    display: "Qualimap RNAseq QC report"
+
+  # Qualimap (RustQC)
+  "**/rustqc/qualimap/**/qualimapReport.html":
+    display: "RustQC Qualimap RNAseq QC report"
+
+  ## =====================
+  ##  Plots - Qualimap
+  ## =====================
+
+  # Qualimap images (upstream)
+  "**/qualimap/**/images_qualimapReport/*.png":
+    display: "Qualimap QC plot"
+
+  # Qualimap images (RustQC - PNG)
+  "**/rustqc/qualimap/**/images_qualimapReport/*.png":
+    display: "RustQC Qualimap QC plot"
+
+  ## =====================
+  ##  Plots - dupRadar
+  ## =====================
+
+  # dupRadar (upstream)
+  "**/dupradar/scatter_plot/*.pdf":
+    display: "dupRadar duplication rate expression density plot"
+  "**/dupradar/box_plot/*.pdf":
+    display: "dupRadar duplication rate expression boxplot"
+  "**/dupradar/histogram/*.pdf":
+    display: "dupRadar expression histogram"
+
+  # dupRadar (RustQC)
+  "**/rustqc/dupradar/*_duprateExpDens.png":
+    display: "RustQC dupRadar duplication rate expression density plot"
+  "**/rustqc/dupradar/*_duprateExpBoxplot.png":
+    display: "RustQC dupRadar duplication rate expression boxplot"
+  "**/rustqc/dupradar/*_expressionHist.png":
+    display: "RustQC dupRadar expression histogram"
+
+  ## =====================
+  ##  Plots - RSeQC
+  ## =====================
+
+  # RSeQC read duplication (upstream)
+  "**/rseqc/read_duplication/pdf/*.pdf":
+    display: "RSeQC read duplication rate plot"
+
+  # RSeQC read duplication (RustQC)
+  "**/rustqc/rseqc/read_duplication/*.DupRate_plot.png":
+    display: "RustQC RSeQC read duplication rate plot"
+
+  # RSeQC junction annotation (upstream)
+  "**/rseqc/junction_annotation/pdf/*.pdf":
+    display: "RSeQC junction annotation plot"
+
+  # RSeQC junction annotation (RustQC)
+  "**/rustqc/rseqc/junction_annotation/*.splice_events.png":
+    display: "RustQC RSeQC splice events plot"
+  "**/rustqc/rseqc/junction_annotation/*.splice_junction.png":
+    display: "RustQC RSeQC splice junction plot"
+
+  # RSeQC junction saturation (upstream)
+  "**/rseqc/junction_saturation/pdf/*.pdf":
+    display: "RSeQC junction saturation plot"
+
+  # RSeQC junction saturation (RustQC)
+  "**/rustqc/rseqc/junction_saturation/*.junctionSaturation_plot.png":
+    display: "RustQC RSeQC junction saturation plot"
+
+  # RSeQC inner distance (upstream)
+  "**/rseqc/inner_distance/pdf/*.pdf":
+    display: "RSeQC inner distance plot"
+
+  # RSeQC inner distance (RustQC)
+  "**/rustqc/rseqc/inner_distance/*.inner_distance_plot.png":
+    display: "RustQC RSeQC inner distance plot"
+
+  ## =====================
+  ##  Text - Qualimap
+  ## =====================
+
+  "**/qualimap/**/rnaseq_qc_results.txt":
+    display: "Qualimap RNAseq QC results"
+  "**/rustqc/qualimap/**/rnaseq_qc_results.txt":
+    display: "RustQC Qualimap RNAseq QC results"
+  "**/qualimap/**/raw_data_qualimapReport/*.txt":
+    display: "Qualimap raw data"
+  "**/rustqc/qualimap/**/raw_data_qualimapReport/*.txt":
+    display: "RustQC Qualimap raw data"
+
+  ## =====================
+  ##  Text - dupRadar
+  ## =====================
+
+  "**/dupradar/gene_data/*_dupMatrix.txt":
+    display: "dupRadar duplication matrix"
+  "**/dupradar/intercepts_slope/*_intercept_slope.txt":
+    display: "dupRadar intercept and slope"
+  "**/rustqc/dupradar/*_dupMatrix.txt":
+    display: "RustQC dupRadar duplication matrix"
+  "**/rustqc/dupradar/*_intercept_slope.txt":
+    display: "RustQC dupRadar intercept and slope"
+
+  ## =====================
+  ##  Text - Preseq
+  ## =====================
+
+  "**/preseq/*.lc_extrap.txt":
+    display: "Preseq library complexity extrapolation"
+  "**/rustqc/preseq/*.lc_extrap.txt":
+    display: "RustQC Preseq library complexity extrapolation"
+
+  ## =====================
+  ##  Text - featureCounts
+  ## =====================
+
+  "**/featurecounts/*.featureCounts.tsv":
+    display: "featureCounts gene counts"
+  "**/featurecounts/*.featureCounts.tsv.summary":
+    display: "featureCounts assignment summary"
+  "**/rustqc/featurecounts/*.featureCounts.tsv":
+    display: "RustQC featureCounts gene counts"
+  "**/rustqc/featurecounts/*.featureCounts.tsv.summary":
+    display: "RustQC featureCounts assignment summary"
+  "**/rustqc/featurecounts/*.biotype_counts.tsv":
+    display: "RustQC featureCounts biotype counts"
+
+  ## =====================
+  ##  Text - RSeQC
+  ## =====================
+
+  "**/rseqc/bam_stat/*.bam_stat.txt":
+    display: "RSeQC BAM statistics"
+  "**/rustqc/rseqc/bam_stat/*.bam_stat.txt":
+    display: "RustQC RSeQC BAM statistics"
+
+  "**/rseqc/infer_experiment/*.infer_experiment.txt":
+    display: "RSeQC inferred strandedness"
+  "**/rustqc/rseqc/infer_experiment/*.infer_experiment.txt":
+    display: "RustQC RSeQC inferred strandedness"
+
+  "**/rseqc/read_duplication/xls/*.xls":
+    display: "RSeQC read duplication rates"
+  "**/rustqc/rseqc/read_duplication/*.DupRate.xls":
+    display: "RustQC RSeQC read duplication rates"
+
+  "**/rseqc/read_distribution/*.read_distribution.txt":
+    display: "RSeQC read distribution"
+  "**/rustqc/rseqc/read_distribution/*.read_distribution.txt":
+    display: "RustQC RSeQC read distribution"
+
+  "**/rseqc/junction_annotation/xls/*.xls":
+    display: "RSeQC junction annotation data"
+  "**/rseqc/junction_annotation/bed/*.bed":
+    display: "RSeQC junction annotation BED"
+  "**/rseqc/junction_annotation/log/*.log":
+    display: "RSeQC junction annotation log"
+  "**/rustqc/rseqc/junction_annotation/*.junction.xls":
+    display: "RustQC RSeQC junction annotation data"
+  "**/rustqc/rseqc/junction_annotation/*.junction.bed":
+    display: "RustQC RSeQC junction annotation BED"
+  "**/rustqc/rseqc/junction_annotation/*.junction_annotation.txt":
+    display: "RustQC RSeQC junction annotation log"
+
+  "**/rseqc/inner_distance/txt/*.txt":
+    display: "RSeQC inner distance data"
+  "**/rustqc/rseqc/inner_distance/*.inner_distance*.txt":
+    display: "RustQC RSeQC inner distance data"
+
+  "**/rustqc/rseqc/junction_saturation/*.junctionSaturation_summary.txt":
+    display: "RustQC RSeQC junction saturation summary"
+
+  ## =====================
+  ##  Text - RSeQC TIN (RustQC only)
+  ## =====================
+
+  "**/rustqc/rseqc/tin/*.summary.txt":
+    display: "RustQC RSeQC Transcript Integrity Number summary"
+  "**/rustqc/rseqc/tin/*.tin.xls":
+    display: "RustQC RSeQC Transcript Integrity Number data"
+
+  ## =====================
+  ##  Text - Samtools
+  ## =====================
+
+  "**/samtools/*.flagstat":
+    display: "Samtools flagstat"
+  "**/samtools/*.idxstats":
+    display: "Samtools idxstats"
+  "**/samtools/*.stats":
+    display: "Samtools stats"
+  "**/rustqc/samtools/*.flagstat":
+    display: "RustQC Samtools flagstat"
+  "**/rustqc/samtools/*.idxstats":
+    display: "RustQC Samtools idxstats"
+  "**/rustqc/samtools/*.stats":
+    display: "RustQC Samtools stats"
