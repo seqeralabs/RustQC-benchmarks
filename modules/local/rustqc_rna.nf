@@ -22,11 +22,13 @@ process RUSTQC_RNA {
     def dup_flag       = params.skip_dup_check ? '--skip-dup-check' : ''
     def config_flag    = params.rustqc_config ? "-c ${params.rustqc_config}" : ''
     def biotype_flag   = params.biotype_attribute ? "--biotype-attribute ${params.biotype_attribute}" : ''
+    def stranded_flag  = meta.strandedness == 'reverse' ? '-s 2' : meta.strandedness == 'forward' ? '-s 1' : '-s 0'
     """
     rustqc rna \\
         ${bam} \\
         --gtf ${gtf} \\
         ${paired_flag} \\
+        ${stranded_flag} \\
         -t ${task.cpus} \\
         -o rustqc \\
         ${dup_flag} \\
