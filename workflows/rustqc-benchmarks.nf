@@ -202,9 +202,13 @@ workflow RUSTQC_BENCHMARKS {
         .mix(ch_collated_versions)
         .mix(ch_workflow_summary)
 
-    MULTIQC(
-        [ [id: 'multiqc'], ch_multiqc_files.collect(), ch_multiqc_config.toList(), ch_multiqc_custom_config.toList(), ch_multiqc_logo.toList(), [], [] ],
-    )
+    ch_multiqc_input = ch_multiqc_files.collect()
+        .combine( ch_multiqc_config.mix(ch_multiqc_custom_config).collect().map{ it -> [it] } )
+        .combine( ch_multiqc_logo.toList().map{ it -> [it] } )
+        .map { files, configs, logo ->
+            [ [id: 'multiqc'], files, configs, logo, [], [] ]
+        }
+    MULTIQC( ch_multiqc_input )
 
     emit:
     multiqc_report = MULTIQC.out.report
