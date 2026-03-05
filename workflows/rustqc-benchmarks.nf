@@ -52,13 +52,26 @@ workflow RUSTQC_BENCHMARKS {
     def bed_file = params.bed ? file(params.bed, checkIfExists: true) : null
 
     ch_versions = channel.empty()
+    ch_bam = channel.value([ meta, bam_file ])
+
+    //
+    // Index the BAM if no BAI provided
+    //
+    if (bai_file) {
+        ch_bam_bai = channel.value([ meta, bam_file, bai_file ])
+    } else {
+        SAMTOOLS_INDEX(ch_bam)
+        ch_bam_bai = ch_bam
+            .combine(SAMTOOLS_INDEX.out.bai.map{ m, bai -> bai })
+            .map{ m, bam, bai -> [ m, bam, bai ] }
+    }
 
     //
     // MODULE: RustQC RNA (single-pass, all tools)
     //
     if (params.run_rustqc && gtf_file) {
         RUSTQC_RNA(
-            channel.value([ meta, bam_file, bai_file ]),
+            ch_bam_bai,
             gtf_file,
         )
         ch_versions = ch_versions.mix(RUSTQC_RNA.out.versions)
@@ -68,17 +81,6 @@ workflow RUSTQC_BENCHMARKS {
     // MODULES: Upstream reference tools
     //
     if (params.run_upstream) {
-        ch_bam = channel.value([ meta, bam_file ])
-
-        // Index the BAM if no BAI provided
-        if (bai_file) {
-            ch_bam_bai = channel.value([ meta, bam_file, bai_file ])
-        } else {
-            SAMTOOLS_INDEX(ch_bam)
-            ch_bam_bai = ch_bam
-                .combine(SAMTOOLS_INDEX.out.bai.map{ m, bai -> bai })
-                .map{ m, bam, bai -> [ m, bam, bai ] }
-        }
 
         // Tools that only need BAM (no GTF/BED/BAI required)
         //
