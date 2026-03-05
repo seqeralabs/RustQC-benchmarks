@@ -202,11 +202,12 @@ workflow RUSTQC_BENCHMARKS {
         .mix(ch_collated_versions)
         .mix(ch_workflow_summary)
 
-    ch_multiqc_input = ch_multiqc_files.collect()
-        .combine( ch_multiqc_config.mix(ch_multiqc_custom_config).collect().map{ it -> [it] } )
-        .combine( ch_multiqc_logo.toList().map{ it -> [it] } )
-        .map { files, configs, logo ->
-            [ [id: 'multiqc'], files, configs, logo, [], [] ]
+    ch_multiqc_input = Channel.of( [id: 'multiqc'] )
+        .combine( ch_multiqc_files.collect().map{ [it] } )
+        .combine( ch_multiqc_config.mix(ch_multiqc_custom_config).collect().map{ [it] }.ifEmpty([[]] ) )
+        .combine( ch_multiqc_logo.collect().map{ [it] }.ifEmpty([[]] ) )
+        .map { mqc_meta, files, configs, logo ->
+            [ mqc_meta, files, configs, logo, [], [] ]
         }
     MULTIQC( ch_multiqc_input )
 
