@@ -1,0 +1,23 @@
+Changes in component 'nf-core/rseqc/tin'
+'modules/nf-core/rseqc/tin/environment.yml' is unchanged
+'modules/nf-core/rseqc/tin/meta.yml' is unchanged
+Changes in 'rseqc/tin/main.nf':
+--- modules/nf-core/rseqc/tin/main.nf
++++ modules/nf-core/rseqc/tin/main.nf
+@@ -28,8 +28,10 @@
+         -r $bed \\
+         $args
+ 
+-    mv ${bam.baseName}.summary.txt ${prefix}.summary.txt
+-    mv ${bam.baseName}.tin.xls ${prefix}.tin.xls
++    if [ "${bam.baseName}" != "${prefix}" ]; then
++        mv ${bam.baseName}.summary.txt ${prefix}.summary.txt
++        mv ${bam.baseName}.tin.xls ${prefix}.tin.xls
++    fi
+     """
+ 
+     stub:
+
+'modules/nf-core/rseqc/tin/tests/main.nf.test.snap' is unchanged
+'modules/nf-core/rseqc/tin/tests/main.nf.test' is unchanged
+************************************************************

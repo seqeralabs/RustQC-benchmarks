@@ -27,6 +27,7 @@ include { RSEQC_READDISTRIBUTION                  } from '../modules/nf-core/rse
 include { RSEQC_JUNCTIONANNOTATION                } from '../modules/nf-core/rseqc/junctionannotation/main'
 include { RSEQC_JUNCTIONSATURATION                } from '../modules/nf-core/rseqc/junctionsaturation/main'
 include { RSEQC_INNERDISTANCE                     } from '../modules/nf-core/rseqc/innerdistance/main'
+include { RSEQC_TIN                               } from '../modules/nf-core/rseqc/tin/main'
 include { SAMTOOLS_FLAGSTAT                       } from '../modules/nf-core/samtools/flagstat/main'
 include { SAMTOOLS_IDXSTATS                       } from '../modules/nf-core/samtools/idxstats/main'
 include { SAMTOOLS_INDEX                          } from '../modules/nf-core/samtools/index/main'
@@ -170,6 +171,7 @@ workflow RUSTQC_BENCHMARKS {
         RSEQC_JUNCTIONANNOTATION(ch_bam_bai, ch_bed)
         RSEQC_JUNCTIONSATURATION(ch_bam_bai, ch_bed)
         RSEQC_INNERDISTANCE(ch_bam_bai, ch_bed)
+        RSEQC_TIN(ch_bam_bai, ch_bed)
 
         //
         // Collect upstream tool outputs for MultiQC

@@ -65,6 +65,12 @@
                         "git_sha": "0145202ae8a9f39a4e7c533f667c38989af799b2",
                         "installed_by": ["modules"]
                     },
+                    "rseqc/tin": {
+                        "branch": "master",
+                        "git_sha": "eed5d14302a6c9070dcc25feeab707a27a4b3254",
+                        "installed_by": ["modules"],
+                        "patch": "modules/nf-core/rseqc/tin/rseqc-tin.diff"
+                    },
                     "samtools/flagstat": {
                         "branch": "master",
                         "git_sha": "1d2fbdcbca677bbe8da0f9d0d2bb7c02f2cab1c9",
