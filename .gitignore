@@ -2,6 +2,7 @@
 .nextflow*
 work/
 results/
+!results/*/COMPARISON_REPORT.md
 results_*/
 
 
