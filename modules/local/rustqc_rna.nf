@@ -7,7 +7,6 @@ process RUSTQC_RNA {
     input:
     tuple val(meta), path(bam), path(bai)
     path gtf
-    path bed
 
     output:
     tuple val(meta), path("rustqc/**"), emit: results

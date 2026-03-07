@@ -87,28 +87,12 @@ workflow RUSTQC_BENCHMARKS {
     }
 
     //
-    // Convert GTF to BED12 if no BED provided (same as nf-core/rnaseq)
-    //
-    if (bed_file) {
-        ch_bed = channel.value(bed_file)
-    } else if (gtf_file) {
-        GTF2BED(ch_plain_gtf.map{ _meta, f -> f })
-        ch_bed = GTF2BED.out.bed
-        ch_versions = ch_versions.mix(GTF2BED.out.versions)
-    } else {
-        ch_bed = channel.empty()
-    }
-
-    //
     // MODULE: RustQC RNA (single-pass, all tools)
-    // When both GTF and BED are available, pass --bed so read_distribution
-    // uses the same BED12 model as upstream RSeQC.
     //
     if (params.run_rustqc && gtf_file) {
         RUSTQC_RNA(
             ch_bam_bai,
             gtf_file,
-            ch_bed,
         )
         ch_versions      = ch_versions.mix(RUSTQC_RNA.out.versions)
         ch_multiqc_files = ch_multiqc_files.mix(RUSTQC_RNA.out.results.map{ _meta, files -> files })
@@ -118,6 +102,19 @@ workflow RUSTQC_BENCHMARKS {
     // MODULES: Upstream reference tools
     //
     if (params.run_upstream) {
+
+        //
+        // Convert GTF to BED12 if no BED provided (needed by RSeQC tools below)
+        //
+        if (bed_file) {
+            ch_bed = channel.value(bed_file)
+        } else if (gtf_file) {
+            GTF2BED(ch_plain_gtf.map{ _meta, f -> f })
+            ch_bed = GTF2BED.out.bed
+            ch_versions = ch_versions.mix(GTF2BED.out.versions)
+        } else {
+            ch_bed = channel.empty()
+        }
 
         // Tools that only need BAM (no GTF/BED/BAI required)
         //
