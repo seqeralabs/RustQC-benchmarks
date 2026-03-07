@@ -75,18 +75,6 @@ workflow RUSTQC_BENCHMARKS {
     }
 
     //
-    // Decompress GTF if gzipped (shared across all GTF consumers)
-    //
-    if (gtf_file && gtf_file.toString().endsWith('.gz')) {
-        GUNZIP_GTF(channel.value([ [:], gtf_file ]))
-        ch_plain_gtf = GUNZIP_GTF.out.gunzip  // tuple(meta, gtf)
-    } else if (gtf_file) {
-        ch_plain_gtf = channel.value([ [:], gtf_file ])
-    } else {
-        ch_plain_gtf = channel.empty()
-    }
-
-    //
     // MODULE: RustQC RNA (single-pass, all tools)
     //
     if (params.run_rustqc && gtf_file) {
@@ -102,6 +90,18 @@ workflow RUSTQC_BENCHMARKS {
     // MODULES: Upstream reference tools
     //
     if (params.run_upstream) {
+
+        //
+        // Decompress GTF if gzipped (needed by Qualimap and GTF2BED below)
+        //
+        if (gtf_file && gtf_file.toString().endsWith('.gz')) {
+            GUNZIP_GTF(channel.value([ [:], gtf_file ]))
+            ch_plain_gtf = GUNZIP_GTF.out.gunzip  // tuple(meta, gtf)
+        } else if (gtf_file) {
+            ch_plain_gtf = channel.value([ [:], gtf_file ])
+        } else {
+            ch_plain_gtf = channel.empty()
+        }
 
         //
         // Convert GTF to BED12 if no BED provided (needed by RSeQC tools below)
