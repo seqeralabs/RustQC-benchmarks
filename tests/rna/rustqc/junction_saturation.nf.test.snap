@@ -1,0 +1,25 @@
+{
+    "junction_saturation_regression": {
+        "content": [
+            [
+                "pdf('rustqc/rseqc/junction_saturation/test.junctionSaturation_plot.pdf')",
+                "x=c(5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100)",
+                "y=c(534,865,1136,1360,1550,1723,1873,1996,2117,2240,2341,2430,2507,2586,2655,2720,2774,2833,2887,2944)",
+                "z=c(576,931,1212,1461,1663,1851,2019,2159,2293,2429,2541,2648,2739,2834,2918,2996,3056,3126,3193,3261)",
+                "w=c(42,66,76,101,113,128,146,163,176,189,200,218,232,248,263,276,282,293,306,317)",
+                "m=max(3,3,0)",
+                "n=min(0,0,0)",
+                "plot(x,z/1000,xlab='percent of total reads',ylab='Number of splicing junctions (x1000)',type='o',col='blue',ylim=c(n,m))",
+                "points(x,y/1000,type='o',col='red')",
+                "points(x,w/1000,type='o',col='green')",
+                "legend(5,3, legend=c(\"All junctions\",\"known junctions\", \"novel junctions\"),col=c(\"blue\",\"red\",\"green\"),lwd=1,pch=1)",
+                "dev.off()"
+            ]
+        ],
+        "timestamp": "2026-03-09T00:26:29.527384",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.01.1"
+        }
+    }
+}
