@@ -3,7 +3,6 @@ process RUSTQC_RNA_PROFILE {
 
     container "${params.rustqc_image ?: 'ghcr.io/seqeralabs/rustqc:dev'}"
 
-    maxForks { params.sequential ? 1 : 1000 }
     cpus { ncpus }
     memory '28.GB'
     time '2.h'
