@@ -1,10 +1,10 @@
 process RUSTQC_RNA_PROFILE {
-    tag "${meta.id}_${ncpus}cores_rep${replicate}"
+    tag { "${meta.id}_${ncpus}cores_rep${replicate}" }
 
     container "${params.rustqc_image ?: 'ghcr.io/seqeralabs/rustqc:dev'}"
 
     maxForks 1
-    cpus ncpus
+    cpus { ncpus }
     memory '28.GB'
     time '2.h'
 
