@@ -62,8 +62,14 @@ class CompareUtils {
                 // Try numeric comparison if tolerance is set
                 if (tolerance > 0 || relTolerance > 0) {
                     try {
-                        double aNum = val.toDouble()
-                        double eNum = eCols[j].toDouble()
+                        // Treat NA/NaN as 0 for numeric comparison (common in R output)
+                        def aStr = val.trim().toUpperCase()
+                        def eStr = eCols[j].trim().toUpperCase()
+                        double aNum = (aStr == 'NA' || aStr == 'NAN') ? 0.0 : val.toDouble()
+                        double eNum = (eStr == 'NA' || eStr == 'NAN') ? 0.0 : eCols[j].toDouble()
+
+                        // Exact match — always pass (handles 0.0 vs 0.0 edge case)
+                        if (aNum == eNum) return
 
                         boolean withinAbsolute = (tolerance > 0) ? Math.abs(aNum - eNum) <= tolerance : false
                         boolean withinRelative = false

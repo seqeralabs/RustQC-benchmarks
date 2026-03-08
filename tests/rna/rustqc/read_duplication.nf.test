@@ -77,18 +77,14 @@ nextflow_process {
             assert posFile : "pos.DupRate.xls not found in: ${allFiles}"
             assert seqFile : "seq.DupRate.xls not found in: ${allFiles}"
 
-            // Exact TSV match against upstream reference
-            // Benchmark report confirms: identical on small dataset
-            CompareUtils.tsvMatch(
-                path(posFile).readLines(),
-                path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/pos.DupRate.xls").readLines(),
-                [tolerance: 0.0]
-            )
-            CompareUtils.tsvMatch(
-                path(seqFile).readLines(),
-                path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/seq.DupRate.xls").readLines(),
-                [tolerance: 0.0]
-            )
+            // Byte-identical match via md5 hash (gold standard)
+            // RustQC produces identical output to upstream RSeQC for read_duplication
+            def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/read_duplication"
+
+            assert path(posFile).md5 == path("${upstreamDir}/pos.DupRate.xls").md5 : \
+                "pos.DupRate.xls md5 mismatch"
+            assert path(seqFile).md5 == path("${upstreamDir}/seq.DupRate.xls").md5 : \
+                "seq.DupRate.xls md5 mismatch"
         }
     }
 }

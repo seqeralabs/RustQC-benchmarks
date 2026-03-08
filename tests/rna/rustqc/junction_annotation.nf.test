@@ -84,17 +84,17 @@ nextflow_process {
             def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/junction_annotation"
 
             // BED: exact match after sorting (line order may differ)
-            // Benchmark report confirms: identical on small dataset
             def actualBed   = path(bedFile).readLines().sort()
             def expectedBed = path("${upstreamDir}/junction.bed").readLines().sort()
             CompareUtils.tsvMatch(actualBed, expectedBed, [tolerance: 0.0])
 
-            // XLS: exact TSV match
-            CompareUtils.tsvMatch(
-                path(xlsFile).readLines(),
-                path("${upstreamDir}/junction.xls").readLines(),
-                [tolerance: 0.0]
-            )
+            // XLS: exact match after sorting data rows (line order may differ)
+            // Same columns, same content — just different iteration order
+            def actualXls   = path(xlsFile).readLines()
+            def expectedXls = path("${upstreamDir}/junction.xls").readLines()
+            def actualXlsSorted   = [actualXls[0]] + actualXls.drop(1).sort()
+            def expectedXlsSorted = [expectedXls[0]] + expectedXls.drop(1).sort()
+            CompareUtils.tsvMatch(actualXlsSorted, expectedXlsSorted, [tolerance: 0.0])
         }
     }
 }
