@@ -9,7 +9,10 @@ nextflow_process {
     tag "read_duplication"
     tag "small"
 
-    test("small dataset - read_duplication matches upstream RSeQC") {
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("read_duplication - regression") {
+
+        tag "regression"
 
         when {
             params {
@@ -31,38 +34,61 @@ nextflow_process {
             assert process.success
 
             def allFiles = process.out.results[0][1].flatten()
+            def posFile = allFiles.find { it.toString().endsWith('pos.DupRate.xls') }
+            def seqFile = allFiles.find { it.toString().endsWith('seq.DupRate.xls') }
+            assert posFile : "pos.DupRate.xls not found in: ${allFiles}"
+            assert seqFile : "seq.DupRate.xls not found in: ${allFiles}"
 
-            def actualPos = allFiles.find {
-                it.toString().contains('pos') && it.toString().endsWith('.DupRate.xls')
-            }
-            def actualSeq = allFiles.find {
-                it.toString().contains('seq') && it.toString().endsWith('.DupRate.xls')
-            }
-
-            assertAll(
-                {
-                    assert actualPos : "pos.DupRate.xls not found in: ${allFiles}"
-                    CompareUtils.tsvMatch(
-                        path(actualPos).readLines(),
-                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/pos.DupRate.xls").readLines(),
-                        [tolerance: 0.0]
-                    )
-                },
-                {
-                    assert actualSeq : "seq.DupRate.xls not found in: ${allFiles}"
-                    CompareUtils.tsvMatch(
-                        path(actualSeq).readLines(),
-                        path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/seq.DupRate.xls").readLines(),
-                        [tolerance: 0.0]
-                    )
-                }
-            )
-
-            // Snapshot for regression tracking
+            // Snapshot both TSV files for regression tracking
             snapshot(
-                pos: path(actualPos).readLines(),
-                seq: path(actualSeq).readLines()
-            ).match("read_duplication_output")
+                pos: path(posFile).readLines(),
+                seq: path(seqFile).readLines()
+            ).match("read_duplication_regression")
+        }
+    }
+
+    // ── Crosscheck: validate RustQC output matches upstream RSeQC ───
+    test("read_duplication - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+            def posFile = allFiles.find { it.toString().endsWith('pos.DupRate.xls') }
+            def seqFile = allFiles.find { it.toString().endsWith('seq.DupRate.xls') }
+            assert posFile : "pos.DupRate.xls not found in: ${allFiles}"
+            assert seqFile : "seq.DupRate.xls not found in: ${allFiles}"
+
+            // Exact TSV match against upstream reference
+            // Benchmark report confirms: identical on small dataset
+            CompareUtils.tsvMatch(
+                path(posFile).readLines(),
+                path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/pos.DupRate.xls").readLines(),
+                [tolerance: 0.0]
+            )
+            CompareUtils.tsvMatch(
+                path(seqFile).readLines(),
+                path("${projectDir}/snapshots/rna/small/rseqc/read_duplication/seq.DupRate.xls").readLines(),
+                [tolerance: 0.0]
+            )
         }
     }
 }

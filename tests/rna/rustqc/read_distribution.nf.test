@@ -9,7 +9,10 @@ nextflow_process {
     tag "read_distribution"
     tag "small"
 
-    test("small dataset - read_distribution matches upstream RSeQC") {
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("read_distribution - regression") {
+
+        tag "regression"
 
         when {
             params {
@@ -34,21 +37,45 @@ nextflow_process {
             def actualFile = allFiles.find { it.toString().endsWith('read_distribution.txt') }
             assert actualFile : "read_distribution.txt not found in: ${allFiles}"
 
-            // Cross-tool comparison: read_distribution has known large numeric
-            // differences between RustQC and upstream RSeQC due to different
-            // region assignment implementations. We check structure, not exact values.
-            def actualLines = path(actualFile).readLines()
-            def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/read_distribution/read_distribution.txt").readLines()
-            assert actualLines.size() > 5 : "read_distribution.txt has too few lines: ${actualLines.size()}"
-            // Check that the same genomic feature categories appear
-            def actualFeatures = actualLines.findAll { it.trim() && !it.startsWith('=') && !it.startsWith('Group') && !it.startsWith('Total') }.collect { it.split(/\s+/)[0] }.sort()
-            def expectedFeatures = expectedLines.findAll { it.trim() && !it.startsWith('=') && !it.startsWith('Group') && !it.startsWith('Total') }.collect { it.split(/\s+/)[0] }.sort()
-            assert actualFeatures.size() > 0 : "No feature categories found in RustQC output"
+            // Snapshot full content for regression tracking
+            snapshot(path(actualFile).readLines()).match("read_distribution_regression")
+        }
+    }
 
-            // Snapshot for regression tracking
-            snapshot(
-                path(actualFile).readLines()
-            ).match("read_distribution_output")
+    // ── Crosscheck: validate RustQC output matches upstream RSeQC ───
+    test("read_distribution - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+            def actualFile = allFiles.find { it.toString().endsWith('read_distribution.txt') }
+            assert actualFile : "read_distribution.txt not found in: ${allFiles}"
+
+            // Exact text match against upstream reference
+            // Benchmark report confirms: identical on small dataset
+            CompareUtils.textMatch(
+                path(actualFile).readLines(),
+                path("${projectDir}/snapshots/rna/small/rseqc/read_distribution/read_distribution.txt").readLines()
+            )
         }
     }
 }

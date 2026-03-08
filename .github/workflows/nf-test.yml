@@ -10,6 +10,16 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      test_mode:
+        description: "Which tests to run"
+        type: choice
+        default: "all"
+        options:
+          - all
+          - regression
+          - crosscheck
+          - upstream
 
 # Cancel if a newer run is started
 concurrency:
@@ -23,6 +33,9 @@ env:
   NXF_ANSI_LOG: false
   NXF_SINGULARITY_CACHEDIR: ${{ github.workspace }}/.singularity
   NXF_SINGULARITY_LIBRARYDIR: ${{ github.workspace }}/.singularity
+  # Map workflow_dispatch test_mode to nf-test --tag value
+  # "all" means no tag filter (run everything)
+  NFT_TAG: ${{ github.event.inputs.test_mode != 'all' && github.event.inputs.test_mode || '' }}
 
 jobs:
   nf-test-changes:
@@ -50,6 +63,7 @@ jobs:
           NFT_VER: ${{ env.NFT_VER }}
         with:
           max_shards: 7
+          tags: ${{ env.NFT_TAG }}
 
       - name: debug
         run: |
@@ -98,6 +112,7 @@ jobs:
           profile: ${{ matrix.profile }}
           shard: ${{ matrix.shard }}
           total_shards: ${{ env.TOTAL_SHARDS }}
+          tags: ${{ env.NFT_TAG }}
 
       - name: Report test status
         if: ${{ always() }}

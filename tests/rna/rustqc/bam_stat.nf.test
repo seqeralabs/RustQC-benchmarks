@@ -9,7 +9,10 @@ nextflow_process {
     tag "bam_stat"
     tag "small"
 
-    test("small dataset - bam_stat matches upstream RSeQC") {
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("bam_stat - regression") {
+
+        tag "regression"
 
         when {
             params {
@@ -34,17 +37,49 @@ nextflow_process {
             def actualFile = allFiles.find { it.toString().endsWith('bam_stat.txt') }
             assert actualFile : "bam_stat.txt not found in: ${allFiles}"
 
-            // Compare against upstream reference
+            // Filter out non-deterministic header lines before snapshotting
+            def lines = path(actualFile).readLines().findAll { line ->
+                !line.startsWith('Load BAM') && !line.startsWith('processing') && line.trim() != ''
+            }
+            snapshot(lines).match("bam_stat_regression")
+        }
+    }
+
+    // ── Crosscheck: validate RustQC output matches upstream RSeQC ───
+    test("bam_stat - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+            def actualFile = allFiles.find { it.toString().endsWith('bam_stat.txt') }
+            assert actualFile : "bam_stat.txt not found in: ${allFiles}"
+
+            // Exact text match against upstream reference (skip non-deterministic headers)
+            // Benchmark report confirms: identical on small dataset
             CompareUtils.textMatch(
                 path(actualFile).readLines(),
                 path("${projectDir}/snapshots/rna/small/rseqc/bam_stat/bam_stat.txt").readLines(),
                 ['Load BAM', 'processing']
             )
-
-            // Snapshot for regression tracking
-            snapshot(
-                path(actualFile).readLines()
-            ).match("bam_stat_output")
         }
     }
 }

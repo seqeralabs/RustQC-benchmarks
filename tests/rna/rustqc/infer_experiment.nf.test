@@ -9,7 +9,10 @@ nextflow_process {
     tag "infer_experiment"
     tag "small"
 
-    test("small dataset - infer_experiment matches upstream RSeQC") {
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("infer_experiment - regression") {
+
+        tag "regression"
 
         when {
             params {
@@ -34,17 +37,49 @@ nextflow_process {
             def actualFile = allFiles.find { it.toString().endsWith('infer_experiment.txt') }
             assert actualFile : "infer_experiment.txt not found in: ${allFiles}"
 
-            // Compare against upstream reference
+            // Filter non-deterministic lines before snapshotting
+            def lines = path(actualFile).readLines().findAll { line ->
+                !line.startsWith('This is') && line.trim() != ''
+            }
+            snapshot(lines).match("infer_experiment_regression")
+        }
+    }
+
+    // ── Crosscheck: validate RustQC output matches upstream RSeQC ───
+    test("infer_experiment - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+            def actualFile = allFiles.find { it.toString().endsWith('infer_experiment.txt') }
+            assert actualFile : "infer_experiment.txt not found in: ${allFiles}"
+
+            // Exact text match against upstream reference (skip version header)
+            // Benchmark report confirms: identical on small dataset
             CompareUtils.textMatch(
                 path(actualFile).readLines(),
                 path("${projectDir}/snapshots/rna/small/rseqc/infer_experiment/infer_experiment.txt").readLines(),
                 ['This is']
             )
-
-            // Snapshot for regression tracking
-            snapshot(
-                path(actualFile).readLines()
-            ).match("infer_experiment_output")
         }
     }
 }

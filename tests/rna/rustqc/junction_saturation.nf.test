@@ -9,7 +9,10 @@ nextflow_process {
     tag "junction_saturation"
     tag "small"
 
-    test("small dataset - junction_saturation matches upstream RSeQC") {
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("junction_saturation - regression") {
+
+        tag "regression"
 
         when {
             params {
@@ -31,24 +34,52 @@ nextflow_process {
             assert process.success
 
             def allFiles = process.out.results[0][1].flatten()
-            def actualRscript = allFiles.find {
-                it.toString().contains('junctionSaturation') && it.toString().endsWith('.r')
+            def rFile = allFiles.find { it.toString().endsWith('junctionSaturation_plot.r') }
+            assert rFile : "junctionSaturation_plot.r not found in: ${allFiles}"
+
+            // Snapshot full content for regression tracking
+            def lines = path(rFile).readLines().findAll { it.trim() != '' }
+            snapshot(lines).match("junction_saturation_regression")
+        }
+    }
+
+    // ── Crosscheck: validate RustQC output matches upstream RSeQC ───
+    test("junction_saturation - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
             }
-            assert actualRscript : "junctionSaturation_plot.r not found in: ${allFiles*.toString()}"
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
 
-            // Compare structure against upstream reference
-            // R script has numeric differences in junction count vectors and file path prefixes,
-            // so we verify structure (same number of data lines) rather than exact content
-            def actualLines = path(actualRscript).readLines().findAll { it.trim() }
-            def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_saturation/junctionSaturation_plot.r")
-                .readLines().findAll { it.trim() }
-            assert actualLines.size() == expectedLines.size() :
-                "junction_saturation R script has ${actualLines.size()} lines, expected ${expectedLines.size()}"
+        then {
+            assert process.success
 
-            // Snapshot for regression tracking
-            snapshot(
-                path(actualRscript).readLines()
-            ).match("junction_saturation_output")
+            def allFiles = process.out.results[0][1].flatten()
+            def rFile = allFiles.find { it.toString().endsWith('junctionSaturation_plot.r') }
+            assert rFile : "junctionSaturation_plot.r not found in: ${allFiles}"
+
+            def upstreamFile = "${projectDir}/snapshots/rna/small/rseqc/junction_saturation/junctionSaturation_plot.r"
+
+            // Exact text match on small dataset
+            // Benchmark report confirms: identical on small dataset
+            // (large dataset has 0.03% stochastic variance — not relevant for small)
+            CompareUtils.textMatch(
+                path(rFile).readLines(),
+                path(upstreamFile).readLines()
+            )
         }
     }
 }

@@ -9,7 +9,10 @@ nextflow_process {
     tag "junction_annotation"
     tag "small"
 
-    test("small dataset - junction_annotation matches upstream RSeQC") {
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("junction_annotation - regression") {
+
+        tag "regression"
 
         when {
             params {
@@ -31,49 +34,67 @@ nextflow_process {
             assert process.success
 
             def allFiles = process.out.results[0][1].flatten()
+            def bedFile = allFiles.find { it.toString().endsWith('.junction.bed') }
+            def xlsFile = allFiles.find { it.toString().endsWith('.junction.xls') }
+            def txtFile = allFiles.find { it.toString().endsWith('junction_annotation.txt') ||
+                                          it.toString().endsWith('junction_annotation.log') }
+            assert bedFile : ".junction.bed not found in: ${allFiles}"
+            assert xlsFile : ".junction.xls not found in: ${allFiles}"
 
-            def actualBed = allFiles.find { it.toString().endsWith('.junction.bed') }
-            def actualXls = allFiles.find { it.toString().endsWith('.junction.xls') }
-            def actualTxt = allFiles.find {
-                it.toString().contains('junction_annotation') &&
-                (it.toString().endsWith('.txt') || it.toString().endsWith('.log'))
-            }
-
-            // Cross-tool comparison: junction annotation outputs may differ in
-            // sort order and summary format between RustQC and upstream RSeQC.
-            // We compare sorted content and use generous tolerances.
-            assertAll(
-                {
-                    assert actualBed : "junction.bed not found in: ${allFiles}"
-                    // Sort both BED files before comparing (order may differ)
-                    def actualLines = path(actualBed).readLines().sort()
-                    def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation/junction.bed").readLines().sort()
-                    assert actualLines.size() > 0 : "junction.bed is empty"
-                    // Check line count is within 10% (RustQC may find slightly different junctions)
-                    def ratio = actualLines.size() / (double) expectedLines.size()
-                    assert ratio > 0.8 && ratio < 1.2 : "junction.bed line count differs significantly: ${actualLines.size()} vs ${expectedLines.size()}"
-                },
-                {
-                    assert actualXls : "junction.xls not found in: ${allFiles}"
-                    def actualLines = path(actualXls).readLines().sort()
-                    def expectedLines = path("${projectDir}/snapshots/rna/small/rseqc/junction_annotation/junction.xls").readLines().sort()
-                    assert actualLines.size() > 0 : "junction.xls is empty"
-                    def ratio = actualLines.size() / (double) expectedLines.size()
-                    assert ratio > 0.8 && ratio < 1.2 : "junction.xls line count differs significantly: ${actualLines.size()} vs ${expectedLines.size()}"
-                },
-                {
-                    assert actualTxt : "junction_annotation.txt not found in: ${allFiles}"
-                    // Just check it has content (summary format differs between implementations)
-                    def lines = path(actualTxt).readLines()
-                    assert lines.size() > 0 : "junction_annotation.txt is empty"
-                }
-            )
-
-            // Snapshot for regression tracking
+            // Snapshot sorted BED and XLS for stable regression comparison
+            def bedLines = path(bedFile).readLines().sort()
+            def xlsLines = path(xlsFile).readLines()
             snapshot(
-                bed: path(actualBed).readLines(),
-                xls: path(actualXls).readLines()
-            ).match("junction_annotation_output")
+                bed: bedLines,
+                xls: xlsLines
+            ).match("junction_annotation_regression")
+        }
+    }
+
+    // ── Crosscheck: validate RustQC output matches upstream RSeQC ───
+    test("junction_annotation - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def allFiles = process.out.results[0][1].flatten()
+            def bedFile = allFiles.find { it.toString().endsWith('.junction.bed') }
+            def xlsFile = allFiles.find { it.toString().endsWith('.junction.xls') }
+            assert bedFile : ".junction.bed not found in: ${allFiles}"
+            assert xlsFile : ".junction.xls not found in: ${allFiles}"
+
+            def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/junction_annotation"
+
+            // BED: exact match after sorting (line order may differ)
+            // Benchmark report confirms: identical on small dataset
+            def actualBed   = path(bedFile).readLines().sort()
+            def expectedBed = path("${upstreamDir}/junction.bed").readLines().sort()
+            CompareUtils.tsvMatch(actualBed, expectedBed, [tolerance: 0.0])
+
+            // XLS: exact TSV match
+            CompareUtils.tsvMatch(
+                path(xlsFile).readLines(),
+                path("${upstreamDir}/junction.xls").readLines(),
+                [tolerance: 0.0]
+            )
         }
     }
 }

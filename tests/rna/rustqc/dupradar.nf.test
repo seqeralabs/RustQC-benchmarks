@@ -1,6 +1,6 @@
 nextflow_process {
 
-    name "Test RUSTQC dupRadar output"
+    name "Test RUSTQC dupradar output"
     script "../../../modules/local/rustqc_rna.nf"
     process "RUSTQC_RNA"
 
@@ -9,7 +9,10 @@ nextflow_process {
     tag "dupradar"
     tag "small"
 
-    test("small dataset - dupRadar dupMatrix matches upstream") {
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("dupradar - regression") {
+
+        tag "regression"
 
         when {
             params {
@@ -31,46 +34,63 @@ nextflow_process {
             assert process.success
 
             def allFiles = process.out.results[0][1].flatten()
+            def matrixFile = allFiles.find { it.toString().contains('dupMatrix') }
+            def slopeFile  = allFiles.find { it.toString().contains('intercept_slope') }
+            assert matrixFile : "dupMatrix file not found in: ${allFiles}"
+            assert slopeFile  : "intercept_slope file not found in: ${allFiles}"
 
-            def actualMatrix = allFiles.find {
-                it.toString().contains('dupMatrix') || it.toString().contains('dup_matrix')
+            // Snapshot both files for regression tracking
+            snapshot(
+                matrix: path(matrixFile).readLines(),
+                slope:  path(slopeFile).readLines()
+            ).match("dupradar_regression")
+        }
+    }
+
+    // ── Crosscheck: validate RustQC output matches upstream dupRadar ─
+    test("dupradar - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
             }
-            def actualSlope = allFiles.find {
-                it.toString().contains('intercept_slope') || it.toString().contains('slope')
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
             }
+        }
 
-            assert actualMatrix : "dupMatrix not found in: ${allFiles}"
-            assert actualSlope : "intercept_slope not found in: ${allFiles}"
+        then {
+            assert process.success
 
-            assertAll(
-                // dupMatrix: float precision tolerance (last-digit rounding)
-                {
-                    CompareUtils.tsvMatch(
-                        path(actualMatrix).readLines(),
-                        path("${projectDir}/snapshots/rna/small/dupradar/dupMatrix.txt").readLines(),
-                        [tolerance: 1e-10]
-                    )
-                },
-                // Intercept/slope: check file exists and has content
-                // Format differs between RustQC and upstream (different column structure)
-                {
-                    def slopeLines = path(actualSlope).readLines().findAll { it.trim() }
-                    assert slopeLines.size() > 0 : "intercept_slope file is empty"
-                },
-                // Check plot files exist
-                {
-                    def plots = allFiles.findAll {
-                        it.toString().endsWith('.png') || it.toString().endsWith('.svg')
-                    }
-                    assert plots.size() > 0 : "No plot files produced"
-                }
+            def allFiles = process.out.results[0][1].flatten()
+            def matrixFile = allFiles.find { it.toString().contains('dupMatrix') }
+            def slopeFile  = allFiles.find { it.toString().contains('intercept_slope') }
+            assert matrixFile : "dupMatrix file not found in: ${allFiles}"
+            assert slopeFile  : "intercept_slope file not found in: ${allFiles}"
+
+            // dupMatrix: numeric match with float precision tolerance (1e-8)
+            // Benchmark report confirms: identical except 9th significant figure
+            CompareUtils.tsvMatch(
+                path(matrixFile).readLines(),
+                path("${projectDir}/snapshots/rna/small/dupradar/dupMatrix.txt").readLines(),
+                [tolerance: 1e-8]
             )
 
-            // Snapshot for regression tracking
-            snapshot(
-                matrix: path(actualMatrix).readLines(),
-                slope: path(actualSlope).readLines()
-            ).match("dupradar_output")
+            // intercept_slope: numeric match with float precision tolerance
+            CompareUtils.tsvMatch(
+                path(slopeFile).readLines(),
+                path("${projectDir}/snapshots/rna/small/dupradar/intercept_slope.txt").readLines(),
+                [tolerance: 1e-8]
+            )
         }
     }
 }
