@@ -30,6 +30,7 @@ params.biotype_attribute = 'gene_type'
 params.skip_dup_check   = false
 params.cores            = '1,2,3,4,5,6,7,8,10,12,14,16,20,24,28,32'
 params.replicates       = 3
+params.sequential       = false
 params.outdir           = 'results/profile_cores'
 
 /*
