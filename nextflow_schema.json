@@ -115,11 +115,6 @@
                     "type": "string",
                     "description": "GTF attribute to use for biotype classification."
                 },
-                "featurecounts_group_type": {
-                    "type": "string",
-                    "default": "gene_biotype",
-                    "description": "Attribute type for featureCounts grouping."
-                },
                 "featurecounts_feature_type": {
                     "type": "string",
                     "default": "exon",
