@@ -112,8 +112,9 @@ nextflow_process {
                 "Biotype sets differ: RustQC=${actualBiotypes.keySet().sort()} upstream=${expectedBiotypes.keySet().sort()}"
 
             // Compare per-biotype counts with tolerance
-            // Most biotypes match exactly; protein_coding differs ~6% due to
-            // ambiguity resolution; pseudogene ~16%; lincRNA ~2%.
+            // Most biotypes match closely; protein_coding differs ~6% because the
+            // upstream reference merges exons by biotype (reducing ambiguity),
+            // while RustQC counts per-gene then aggregates. pseudogene ~16%; lincRNA ~2%.
             def mismatches = []
             actualBiotypes.each { biotype, actual ->
                 def expected = expectedBiotypes[biotype]
@@ -136,9 +137,15 @@ nextflow_process {
             }
 
             // ── Summary comparison ────────────────────────────────────────
-            // Note: biotype-level summary differs significantly because upstream
-            // merges exons by biotype (fewer ambiguous reads) while RustQC counts
-            // per-gene first. Use generous tolerance for non-zero values.
+            // Note: The upstream reference here used -g gene_biotype, which merges
+            // all exons of the same biotype before counting. This means a read
+            // overlapping two genes of the same biotype is NOT ambiguous upstream,
+            // but IS ambiguous when counting per-gene (which is what RustQC does,
+            // matching upstream -g gene_id exactly). This shifts ~6% of reads from
+            // Assigned → Unassigned_Ambiguity in the per-gene approach.
+            // RustQC's per-gene counts are validated separately in the per-gene
+            // crosscheck test below — here we just verify structural consistency
+            // and that the expected direction of difference holds.
             def actualSummary   = path(summaryFile).readLines().findAll { it.trim() }
             def expectedSummary = path("${upstreamDir}/featureCounts.tsv.summary").readLines().findAll { it.trim() }
 
@@ -148,12 +155,6 @@ nextflow_process {
             assert actualLabels == expectedLabels : \
                 "Summary labels differ: ${actualLabels} vs ${expectedLabels}"
 
-            // Compare all values: zero-value rows must match exactly.
-            // Non-zero rows: Assigned and Ambiguity differ significantly because
-            // upstream merges exons by biotype (so a read overlapping two genes of
-            // the same biotype is NOT ambiguous), while RustQC counts per-gene
-            // first (making such reads ambiguous). This shifts ~6% of reads from
-            // Assigned → Unassigned_Ambiguity. Other categories should match well.
             expectedSummary.eachWithIndex { line, i ->
                 if (i == 0) return  // skip header
                 def parts = line.split('\t')
@@ -166,14 +167,15 @@ nextflow_process {
                         if (ev == 0) {
                             assert av == 0 : "Expected 0 for ${label}, got ${av}"
                         } else if (label in ['Assigned', 'Unassigned_Ambiguity']) {
-                            // Known to differ significantly due to different grouping
-                            // Just verify the direction makes sense: RustQC has fewer
-                            // Assigned and more Ambiguity than upstream
+                            // These differ because the upstream reference merges by
+                            // biotype (fewer ambiguous reads) while RustQC counts
+                            // per-gene. Verify the expected direction:
+                            // - Per-gene counting → fewer Assigned, more Ambiguity
                             if (label == 'Assigned') {
-                                assert av <= ev : "RustQC Assigned (${av}) should be <= upstream (${ev})"
+                                assert av <= ev : "RustQC Assigned (${av}) should be <= upstream biotype-level (${ev})"
                             }
                             if (label == 'Unassigned_Ambiguity') {
-                                assert av >= ev : "RustQC Ambiguity (${av}) should be >= upstream (${ev})"
+                                assert av >= ev : "RustQC Ambiguity (${av}) should be >= upstream biotype-level (${ev})"
                             }
                         } else {
                             // Other categories should match closely
