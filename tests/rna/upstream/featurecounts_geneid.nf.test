@@ -2,7 +2,8 @@ nextflow_process {
 
     name "Test upstream Subread featureCounts (per-gene, -g gene_id)"
     script "../../../modules/nf-core/subread/featurecounts/main.nf"
-    process "SUBREAD_FEATURECOUNTS_GENEID"
+    process "SUBREAD_FEATURECOUNTS"
+    config "./featurecounts_geneid.config"
 
     tag "upstream"
     tag "rna"
