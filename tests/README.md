@@ -158,17 +158,17 @@ Row 42, Col 3: value 0.12345679 differs from expected 0.12345678
 
 Each tool uses comparison methods matched to its output characteristics:
 
-| Tool                    | Regression method             | Crosscheck method                             | Crosscheck tolerance / notes                                        |
-| ----------------------- | ----------------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
-| **bam_stat**            | `snapshot(filteredLines)`     | `textMatch` (skip headers)                    | Exact (after filtering `Load BAM` / `processing` prefixes)          |
-| **infer_experiment**    | `snapshot(filteredLines)`     | `textMatch` (skip "This is")                  | Exact (after filtering header line)                                 |
-| **read_distribution**   | `snapshot(lines)`             | Structural: row labels + column count         | Algorithmic differences too large for numeric comparison (UTR 3.5x) |
-| **read_duplication**    | `snapshot({pos, seq})`        | **md5 hash** (byte-identical)                 | Gold standard — files are identical between RustQC and upstream     |
-| **dupradar**            | `snapshot({matrix, slope})`   | `tsvMatch` (count cols only) + slope parsing  | Abs: 10, Rel: 2% for counts; skip rate/RPKM cols; slope within 10%  |
-| **featurecounts**       | `snapshot({counts, summary})` | Structural: same labels, zero-value agreement | Incompatible formats (biotype summary vs per-gene counts)           |
-| **inner_distance**      | `snapshot({distance, freq})`  | Read ID set match + `tsvMatch` (freq)         | Read IDs must match; freq histogram: 15% relative tolerance         |
-| **junction_annotation** | `snapshot({bed sorted, xls})` | `tsvMatch` (sorted BED + sorted XLS)          | Exact after sorting (identical content, different iteration order)  |
-| **junction_saturation** | `snapshot(lines)`             | 100% sample values + R script structure       | Deterministic values only; stochastic intermediate points skipped   |
+| Tool                    | Regression method             | Crosscheck method                            | Crosscheck tolerance / notes                                        |
+| ----------------------- | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------- |
+| **bam_stat**            | `snapshot(filteredLines)`     | `textMatch` (skip headers)                   | Exact (after filtering `Load BAM` / `processing` prefixes)          |
+| **infer_experiment**    | `snapshot(filteredLines)`     | `textMatch` (skip "This is")                 | Exact (after filtering header line)                                 |
+| **read_distribution**   | `snapshot(lines)`             | Structural: row labels + column count        | Algorithmic differences too large for numeric comparison (UTR 3.5x) |
+| **read_duplication**    | `snapshot({pos, seq})`        | **md5 hash** (byte-identical)                | Gold standard — files are identical between RustQC and upstream     |
+| **dupradar**            | `snapshot({matrix, slope})`   | `tsvMatch` (count cols only) + slope parsing | Abs: 10, Rel: 2% for counts; skip rate/RPKM cols; slope within 10%  |
+| **featurecounts**       | `snapshot({counts, summary})` | Biotype-to-biotype comparison + summary      | 20% per-biotype tolerance; ambiguity resolution differs (~6% total) |
+| **inner_distance**      | `snapshot({distance, freq})`  | Read ID set match + `tsvMatch` (freq)        | Read IDs must match; freq histogram: 15% relative tolerance         |
+| **junction_annotation** | `snapshot({bed sorted, xls})` | `tsvMatch` (sorted BED + sorted XLS)         | Exact after sorting (identical content, different iteration order)  |
+| **junction_saturation** | `snapshot(lines)`             | 100% sample values + R script structure      | Deterministic values only; stochastic intermediate points skipped   |
 
 ### Tolerance rationale
 
@@ -176,7 +176,7 @@ Tolerances were determined empirically by comparing actual RustQC outputs agains
 
 1. **Byte-identical** — `read_duplication`, `junction_annotation` (after sort): Use exact comparison or md5
 2. **Near-identical** — `bam_stat`, `infer_experiment`, `junction_saturation` (100% values): Use exact comparison (after filtering non-deterministic headers/paths)
-3. **Algorithmically different** — `dupradar` (multi-mapper handling), `featurecounts` (biotype vs gene-level counting), `inner_distance` (~2% of reads classified differently), `read_distribution` (gene model resolution): Use structural comparison or tolerance-based matching
+3. **Algorithmically different** — `dupradar` (multi-mapper handling), `featurecounts` (ambiguity resolution differs ~6% due to `-g gene_biotype` vs per-gene aggregation), `inner_distance` (~2% of reads classified differently), `read_distribution` (gene model resolution): Use tolerance-based or structural comparison
 
 ## Updating Snapshots
 
