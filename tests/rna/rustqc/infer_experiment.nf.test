@@ -33,9 +33,9 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def actualFile = allFiles.find { it.toString().endsWith('infer_experiment.txt') }
-            assert actualFile : "infer_experiment.txt not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/rseqc/infer_experiment/test.infer_experiment.txt"
+            assert path(actualFile).exists() : "infer_experiment.txt not found in: ${rustqcDir}"
 
             // Filter non-deterministic lines before snapshotting
             def lines = path(actualFile).readLines().findAll { line ->
@@ -69,9 +69,9 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def actualFile = allFiles.find { it.toString().endsWith('infer_experiment.txt') }
-            assert actualFile : "infer_experiment.txt not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/rseqc/infer_experiment/test.infer_experiment.txt"
+            assert path(actualFile).exists() : "infer_experiment.txt not found in: ${rustqcDir}"
 
             // Exact text match against upstream reference (skip version header)
             // Benchmark report confirms: identical on small dataset

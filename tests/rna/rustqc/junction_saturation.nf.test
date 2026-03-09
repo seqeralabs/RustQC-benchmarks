@@ -33,9 +33,9 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def rFile = allFiles.find { it.toString().endsWith('junctionSaturation_plot.r') }
-            assert rFile : "junctionSaturation_plot.r not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def rFile = "${rustqcDir}/rseqc/junction_saturation/test.junctionSaturation_plot.r"
+            assert path(rFile).exists() : "junctionSaturation_plot.r not found in: ${rustqcDir}"
 
             // Snapshot full content for regression tracking
             def lines = path(rFile).readLines().findAll { it.trim() != '' }
@@ -67,9 +67,9 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def rFile = allFiles.find { it.toString().endsWith('junctionSaturation_plot.r') }
-            assert rFile : "junctionSaturation_plot.r not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def rFile = "${rustqcDir}/rseqc/junction_saturation/test.junctionSaturation_plot.r"
+            assert path(rFile).exists() : "junctionSaturation_plot.r not found in: ${rustqcDir}"
 
             def upstreamFile = "${projectDir}/snapshots/rna/small/rseqc/junction_saturation/junctionSaturation_plot.r"
 

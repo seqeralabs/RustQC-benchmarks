@@ -33,11 +33,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def distFile = allFiles.find { it.toString().endsWith('.inner_distance.txt') }
-            def freqFile = allFiles.find { it.toString().endsWith('_freq.txt') }
-            assert distFile : ".inner_distance.txt not found in: ${allFiles}"
-            assert freqFile : "_freq.txt not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def distFile = "${rustqcDir}/rseqc/inner_distance/test.inner_distance.txt"
+            def freqFile = "${rustqcDir}/rseqc/inner_distance/test.inner_distance_freq.txt"
+            assert path(distFile).exists() : ".inner_distance.txt not found in: ${rustqcDir}"
+            assert path(freqFile).exists() : "_freq.txt not found in: ${rustqcDir}"
 
             // Snapshot both files for regression tracking
             snapshot(
@@ -71,11 +71,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def distFile = allFiles.find { it.toString().endsWith('.inner_distance.txt') }
-            def freqFile = allFiles.find { it.toString().endsWith('_freq.txt') }
-            assert distFile : ".inner_distance.txt not found in: ${allFiles}"
-            assert freqFile : "_freq.txt not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def distFile = "${rustqcDir}/rseqc/inner_distance/test.inner_distance.txt"
+            def freqFile = "${rustqcDir}/rseqc/inner_distance/test.inner_distance_freq.txt"
+            assert path(distFile).exists() : ".inner_distance.txt not found in: ${rustqcDir}"
+            assert path(freqFile).exists() : "_freq.txt not found in: ${rustqcDir}"
 
             def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/inner_distance"
 

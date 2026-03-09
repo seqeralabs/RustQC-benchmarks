@@ -33,11 +33,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def matrixFile = allFiles.find { it.toString().contains('dupMatrix') }
-            def slopeFile  = allFiles.find { it.toString().contains('intercept_slope') }
-            assert matrixFile : "dupMatrix file not found in: ${allFiles}"
-            assert slopeFile  : "intercept_slope file not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def matrixFile = "${rustqcDir}/dupradar/test_dupMatrix.txt"
+            def slopeFile  = "${rustqcDir}/dupradar/test_intercept_slope.txt"
+            assert path(matrixFile).exists() : "dupMatrix file not found in: ${rustqcDir}"
+            assert path(slopeFile).exists()  : "intercept_slope file not found in: ${rustqcDir}"
 
             // Snapshot both files for regression tracking
             snapshot(
@@ -71,11 +71,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def matrixFile = allFiles.find { it.toString().contains('dupMatrix') }
-            def slopeFile  = allFiles.find { it.toString().contains('intercept_slope') }
-            assert matrixFile : "dupMatrix file not found in: ${allFiles}"
-            assert slopeFile  : "intercept_slope file not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def matrixFile = "${rustqcDir}/dupradar/test_dupMatrix.txt"
+            def slopeFile  = "${rustqcDir}/dupradar/test_intercept_slope.txt"
+            assert path(matrixFile).exists() : "dupMatrix file not found in: ${rustqcDir}"
+            assert path(slopeFile).exists()  : "intercept_slope file not found in: ${rustqcDir}"
 
             // dupMatrix: compare count columns only (skip derived rate/RPKM columns)
             // RustQC multi-mapper handling produces slightly different read counts

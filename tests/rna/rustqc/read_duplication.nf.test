@@ -33,11 +33,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def posFile = allFiles.find { it.toString().endsWith('pos.DupRate.xls') }
-            def seqFile = allFiles.find { it.toString().endsWith('seq.DupRate.xls') }
-            assert posFile : "pos.DupRate.xls not found in: ${allFiles}"
-            assert seqFile : "seq.DupRate.xls not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def posFile = "${rustqcDir}/rseqc/read_duplication/test.pos.DupRate.xls"
+            def seqFile = "${rustqcDir}/rseqc/read_duplication/test.seq.DupRate.xls"
+            assert path(posFile).exists() : "pos.DupRate.xls not found in: ${rustqcDir}"
+            assert path(seqFile).exists() : "seq.DupRate.xls not found in: ${rustqcDir}"
 
             // Snapshot both TSV files for regression tracking
             snapshot(
@@ -71,11 +71,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def posFile = allFiles.find { it.toString().endsWith('pos.DupRate.xls') }
-            def seqFile = allFiles.find { it.toString().endsWith('seq.DupRate.xls') }
-            assert posFile : "pos.DupRate.xls not found in: ${allFiles}"
-            assert seqFile : "seq.DupRate.xls not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def posFile = "${rustqcDir}/rseqc/read_duplication/test.pos.DupRate.xls"
+            def seqFile = "${rustqcDir}/rseqc/read_duplication/test.seq.DupRate.xls"
+            assert path(posFile).exists() : "pos.DupRate.xls not found in: ${rustqcDir}"
+            assert path(seqFile).exists() : "seq.DupRate.xls not found in: ${rustqcDir}"
 
             // Byte-identical match via md5 hash (gold standard)
             // RustQC produces identical output to upstream RSeQC for read_duplication

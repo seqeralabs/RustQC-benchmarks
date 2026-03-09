@@ -9,7 +9,7 @@ process RUSTQC_RNA {
     path gtf
 
     output:
-    tuple val(meta), path("rustqc/**"), emit: results
+    tuple val(meta), path("rustqc"), emit: results
     path "versions.yml",                emit: versions
 
     when:

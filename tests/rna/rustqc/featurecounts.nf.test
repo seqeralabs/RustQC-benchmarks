@@ -33,11 +33,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def biotypeFile = allFiles.find { it.toString().endsWith('biotype_counts.tsv') }
-            def summaryFile = allFiles.find { it.toString().endsWith('.tsv.summary') }
-            assert biotypeFile : "biotype_counts.tsv not found in: ${allFiles}"
-            assert summaryFile : "featureCounts .summary not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def biotypeFile = "${rustqcDir}/featurecounts/test.biotype_counts.tsv"
+            def summaryFile = "${rustqcDir}/featurecounts/test.featureCounts.tsv.summary"
+            assert path(biotypeFile).exists() : "biotype_counts.tsv not found in: ${rustqcDir}"
+            assert path(summaryFile).exists() : "featureCounts .summary not found in: ${rustqcDir}"
 
             // Snapshot biotype counts and summary for regression tracking
             snapshot(
@@ -78,11 +78,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def biotypeFile = allFiles.find { it.toString().endsWith('biotype_counts.tsv') }
-            def summaryFile = allFiles.find { it.toString().endsWith('.tsv.summary') }
-            assert biotypeFile : "biotype_counts.tsv not found in: ${allFiles}"
-            assert summaryFile : "featureCounts .summary not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def biotypeFile = "${rustqcDir}/featurecounts/test.biotype_counts.tsv"
+            def summaryFile = "${rustqcDir}/featurecounts/test.featureCounts.tsv.summary"
+            assert path(biotypeFile).exists() : "biotype_counts.tsv not found in: ${rustqcDir}"
+            assert path(summaryFile).exists() : "featureCounts .summary not found in: ${rustqcDir}"
 
             def upstreamDir = "${projectDir}/snapshots/rna/small/featurecounts"
 
@@ -136,6 +136,9 @@ nextflow_process {
             }
 
             // ── Summary comparison ────────────────────────────────────────
+            // Note: biotype-level summary differs significantly because upstream
+            // merges exons by biotype (fewer ambiguous reads) while RustQC counts
+            // per-gene first. Use generous tolerance for non-zero values.
             def actualSummary   = path(summaryFile).readLines().findAll { it.trim() }
             def expectedSummary = path("${upstreamDir}/featureCounts.tsv.summary").readLines().findAll { it.trim() }
 
@@ -145,7 +148,9 @@ nextflow_process {
             assert actualLabels == expectedLabels : \
                 "Summary labels differ: ${actualLabels} vs ${expectedLabels}"
 
-            // Zero-value rows must agree
+            // Compare all values: zero-value rows must match exactly,
+            // non-zero rows compared with 15% relative tolerance (biotype-level
+            // grouping causes inherently different ambiguity counts).
             expectedSummary.eachWithIndex { line, i ->
                 if (i == 0) return  // skip header
                 def parts = line.split('\t')
@@ -156,10 +161,109 @@ nextflow_process {
                         def av = aParts[1].trim() as Integer
                         if (ev == 0) {
                             assert av == 0 : "Expected 0 for ${actualLabels[i]}, got ${av}"
+                        } else {
+                            def relDiff = Math.abs(av - ev) / (double) ev
+                            assert relDiff <= 0.15 || Math.abs(av - ev) <= 10 : \
+                                "Summary ${actualLabels[i]}: RustQC=${av} upstream=${ev} " +
+                                "(${String.format('%.1f', relDiff * 100)}% diff exceeds 15% tolerance)"
                         }
                     } catch (NumberFormatException e) { /* skip header */ }
                 }
             }
+        }
+    }
+
+    // ── Crosscheck: validate RustQC per-gene counts against upstream ───
+    // Both RustQC and upstream featureCounts count at gene_id level here,
+    // so the results should be very close (same granularity, same counting
+    // unit). Small differences may arise from edge-case overlap handling.
+    test("featurecounts - crosscheck per-gene counts vs upstream") {
+
+        tag "crosscheck"
+        tag "featurecounts_geneid"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def countsFile  = "${rustqcDir}/featurecounts/test.featureCounts.tsv"
+            def summaryFile = "${rustqcDir}/featurecounts/test.featureCounts.tsv.summary"
+            assert path(countsFile).exists()  : "featureCounts.tsv not found in: ${rustqcDir}"
+            assert path(summaryFile).exists() : "featureCounts.tsv.summary not found in: ${rustqcDir}"
+
+            def upstreamDir = "${projectDir}/snapshots/rna/small/featurecounts_geneid"
+
+            // ── Per-gene counts comparison ────────────────────────────────
+            // Both files have featureCounts format: Geneid, Chr, Start, End,
+            // Strand, Length, count. Skip annotation columns (1-5) as formatting
+            // may differ; compare Geneid (col 0) and count (col 6).
+            CompareUtils.tsvMatch(
+                path(countsFile).readLines(),
+                path("${upstreamDir}/test.featureCounts.tsv").readLines(),
+                [
+                    tolerance:    2.0,           // absolute: ≤2 reads per gene
+                    relTolerance: 0.01,          // relative: ≤1%
+                    skipColumns:  [1, 2, 3, 4, 5] as Set,  // skip Chr/Start/End/Strand/Length
+                    skipPrefixes: ['#'],         // skip comment header line
+                ]
+            )
+
+            // ── Per-gene summary comparison ───────────────────────────────
+            // Both tools count at gene_id level, so summary values should be
+            // much closer than the biotype-level comparison. Use tighter
+            // tolerance: 5% relative or absolute ≤50 reads.
+            def actualSummary   = path(summaryFile).readLines().findAll { it.trim() }
+            def expectedSummary = path("${upstreamDir}/test.featureCounts.tsv.summary").readLines().findAll { it.trim() }
+
+            // Same row labels
+            def actualLabels   = actualSummary.collect { it.split('\t')[0] }
+            def expectedLabels = expectedSummary.collect { it.split('\t')[0] }
+            assert actualLabels == expectedLabels : \
+                "Summary labels differ: ${actualLabels} vs ${expectedLabels}"
+
+            // Numeric comparison for all rows
+            def summaryMismatches = []
+            expectedSummary.eachWithIndex { line, i ->
+                if (i == 0) return  // skip header
+                def parts = line.split('\t')
+                def aParts = actualSummary[i].split('\t')
+                if (parts.size() >= 2 && aParts.size() >= 2) {
+                    try {
+                        def ev = parts[1].trim() as Integer
+                        def av = aParts[1].trim() as Integer
+                        if (ev == 0 && av == 0) return  // both zero — fine
+                        if (ev == 0) {
+                            assert av == 0 : "Expected 0 for ${actualLabels[i]}, got ${av}"
+                            return
+                        }
+                        def relDiff = Math.abs(av - ev) / (double) ev
+                        def absDiff = Math.abs(av - ev)
+                        if (relDiff > 0.05 && absDiff > 50) {
+                            summaryMismatches << "${actualLabels[i]}: RustQC=${av} upstream=${ev} " +
+                                "(${String.format('%.1f', relDiff * 100)}% diff, abs diff=${absDiff})"
+                        }
+                    } catch (NumberFormatException e) { /* skip header */ }
+                }
+            }
+            assert !summaryMismatches : \
+                "Per-gene summary exceeds tolerance (5% relative AND >50 absolute):\n  " +
+                summaryMismatches.join('\n  ')
         }
     }
 }

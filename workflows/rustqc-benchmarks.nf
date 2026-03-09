@@ -20,6 +20,7 @@ include { DUPRADAR                                } from '../modules/nf-core/dup
 include { PRESEQ_LCEXTRAP                         } from '../modules/nf-core/preseq/lcextrap/main'
 include { QUALIMAP_RNASEQ                         } from '../modules/nf-core/qualimap/rnaseq/main'
 include { SUBREAD_FEATURECOUNTS                   } from '../modules/nf-core/subread/featurecounts/main'
+include { SUBREAD_FEATURECOUNTS as SUBREAD_FEATURECOUNTS_GENEID } from '../modules/nf-core/subread/featurecounts/main'
 include { RSEQC_BAMSTAT                           } from '../modules/nf-core/rseqc/bamstat/main'
 include { RSEQC_INFEREXPERIMENT                   } from '../modules/nf-core/rseqc/inferexperiment/main'
 include { RSEQC_READDUPLICATION                   } from '../modules/nf-core/rseqc/readduplication/main'
@@ -83,7 +84,7 @@ workflow RUSTQC_BENCHMARKS {
             gtf_file,
         )
         ch_versions      = ch_versions.mix(RUSTQC_RNA.out.versions)
-        ch_multiqc_files = ch_multiqc_files.mix(RUSTQC_RNA.out.results.map{ _meta, files -> files })
+        ch_multiqc_files = ch_multiqc_files.mix(RUSTQC_RNA.out.results.map{ _meta, dir -> dir })
     }
 
     //
@@ -144,7 +145,10 @@ workflow RUSTQC_BENCHMARKS {
             ch_versions = ch_versions.mix(DUPRADAR.out.versions)
 
             // featureCounts: tuple(meta, bams, annotation) — all in one tuple
+            // Biotype-level grouping (-g gene_biotype) for biotype QC comparison
             SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
+            // Per-gene grouping (-g gene_id) for gene-level count comparison with RustQC
+            SUBREAD_FEATURECOUNTS_GENEID(channel.value([ meta, bam_file, gtf_file ]))
 
             // Qualimap: name-sort BAM, then run qualimap rnaseq
             // Mirrors nf-core/rnaseq: GUNZIP_GTF -> SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
@@ -184,6 +188,7 @@ workflow RUSTQC_BENCHMARKS {
         if (gtf_file) {
             ch_multiqc_files = ch_multiqc_files.mix(DUPRADAR.out.multiqc.collect{ _meta, f -> f })
             ch_multiqc_files = ch_multiqc_files.mix(SUBREAD_FEATURECOUNTS.out.summary.collect{ _meta, f -> f })
+            ch_multiqc_files = ch_multiqc_files.mix(SUBREAD_FEATURECOUNTS_GENEID.out.summary.collect{ _meta, f -> f })
             ch_multiqc_files = ch_multiqc_files.mix(QUALIMAP_RNASEQ.out.results.collect{ _meta, f -> f })
         }
 

@@ -33,13 +33,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def bedFile = allFiles.find { it.toString().endsWith('.junction.bed') }
-            def xlsFile = allFiles.find { it.toString().endsWith('.junction.xls') }
-            def txtFile = allFiles.find { it.toString().endsWith('junction_annotation.txt') ||
-                                          it.toString().endsWith('junction_annotation.log') }
-            assert bedFile : ".junction.bed not found in: ${allFiles}"
-            assert xlsFile : ".junction.xls not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def bedFile = "${rustqcDir}/rseqc/junction_annotation/test.junction.bed"
+            def xlsFile = "${rustqcDir}/rseqc/junction_annotation/test.junction.xls"
+            assert path(bedFile).exists() : ".junction.bed not found in: ${rustqcDir}"
+            assert path(xlsFile).exists() : ".junction.xls not found in: ${rustqcDir}"
 
             // Snapshot sorted BED and XLS for stable regression comparison
             def bedLines = path(bedFile).readLines().sort()
@@ -75,11 +73,11 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def bedFile = allFiles.find { it.toString().endsWith('.junction.bed') }
-            def xlsFile = allFiles.find { it.toString().endsWith('.junction.xls') }
-            assert bedFile : ".junction.bed not found in: ${allFiles}"
-            assert xlsFile : ".junction.xls not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def bedFile = "${rustqcDir}/rseqc/junction_annotation/test.junction.bed"
+            def xlsFile = "${rustqcDir}/rseqc/junction_annotation/test.junction.xls"
+            assert path(bedFile).exists() : ".junction.bed not found in: ${rustqcDir}"
+            assert path(xlsFile).exists() : ".junction.xls not found in: ${rustqcDir}"
 
             def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/junction_annotation"
 

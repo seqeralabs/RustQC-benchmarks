@@ -33,9 +33,9 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def actualFile = allFiles.find { it.toString().endsWith('read_distribution.txt') }
-            assert actualFile : "read_distribution.txt not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/rseqc/read_distribution/test.read_distribution.txt"
+            assert path(actualFile).exists() : "read_distribution.txt not found in: ${rustqcDir}"
 
             // Snapshot full content for regression tracking
             snapshot(path(actualFile).readLines()).match("read_distribution_regression")
@@ -66,9 +66,9 @@ nextflow_process {
         then {
             assert process.success
 
-            def allFiles = process.out.results[0][1].flatten()
-            def actualFile = allFiles.find { it.toString().endsWith('read_distribution.txt') }
-            assert actualFile : "read_distribution.txt not found in: ${allFiles}"
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/rseqc/read_distribution/test.read_distribution.txt"
+            assert path(actualFile).exists() : "read_distribution.txt not found in: ${rustqcDir}"
 
             // read_distribution: RustQC and upstream RSeQC use fundamentally different
             // gene model resolution for UTR/intergenic regions, producing significantly
