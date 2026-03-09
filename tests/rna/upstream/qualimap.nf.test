@@ -1,0 +1,53 @@
+nextflow_process {
+
+    name "Test upstream Qualimap RNA-seq"
+    script "../../../modules/nf-core/qualimap/rnaseq/main.nf"
+    process "QUALIMAP_RNASEQ"
+
+    tag "upstream"
+    tag "rna"
+    tag "qualimap"
+    tag "small"
+
+    setup {
+        run("GUNZIP") {
+            script "../../../modules/nf-core/gunzip/main.nf"
+            process {
+                """
+                input[0] = Channel.of([
+                    [:],
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+    }
+
+    test("small dataset - upstream qualimap") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.name_sorted.bam", checkIfExists: true)
+                ])
+                input[1] = GUNZIP.out.gunzip
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def resultsDir = process.out.results[0][1]
+            def coverageTotal = "${resultsDir}/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt"
+            assert path(coverageTotal).exists() : "coverage total not found"
+
+            // Snapshot coverage profile (skip comment headers)
+            snapshot(
+                path(coverageTotal).readLines().findAll { !it.startsWith('#') }
+            ).match("qualimap_output")
+        }
+    }
+}

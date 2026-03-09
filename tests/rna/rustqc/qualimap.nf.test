@@ -1,0 +1,95 @@
+nextflow_process {
+
+    name "Test RustQC qualimap / gene body coverage output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "qualimap"
+    tag "small"
+
+    test("qualimap - regression") {
+
+        tag "regression"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def coverageTotal = "${rustqcDir}/qualimap/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt"
+            def coverageHigh  = "${rustqcDir}/qualimap/raw_data_qualimapReport/coverage_profile_along_genes_(high).txt"
+            def coverageLow   = "${rustqcDir}/qualimap/raw_data_qualimapReport/coverage_profile_along_genes_(low).txt"
+            assert path(coverageTotal).exists() : "coverage total not found in: ${rustqcDir}"
+            assert path(coverageHigh).exists()  : "coverage high not found in: ${rustqcDir}"
+            assert path(coverageLow).exists()   : "coverage low not found in: ${rustqcDir}"
+
+            // Snapshot coverage profiles (skip comment headers)
+            snapshot(
+                "coverage_total": path(coverageTotal).readLines().findAll { !it.startsWith('#') },
+                "coverage_high":  path(coverageHigh).readLines().findAll { !it.startsWith('#') },
+                "coverage_low":   path(coverageLow).readLines().findAll { !it.startsWith('#') }
+            ).match("qualimap_regression")
+        }
+    }
+
+    test("qualimap - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def coverageTotal = "${rustqcDir}/qualimap/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt"
+            assert path(coverageTotal).exists() : "coverage total not found in: ${rustqcDir}"
+
+            def upstreamDir = "${projectDir}/snapshots/rna/small/qualimap/raw_data_qualimapReport"
+
+            // Compare gene body coverage profiles (the primary qualimap output).
+            // Both produce TSV with position (0-100) and normalized coverage.
+            // Skip comment headers starting with #.
+            CompareUtils.tsvMatch(
+                path(coverageTotal).readLines(),
+                path("${upstreamDir}/coverage_profile_along_genes_(total).txt").readLines(),
+                [
+                    relTolerance: 0.05,  // 5% relative tolerance
+                    tolerance:    0.5,   // absolute tolerance for small values
+                    skipPrefixes: ['#'],
+                ]
+            )
+        }
+    }
+}

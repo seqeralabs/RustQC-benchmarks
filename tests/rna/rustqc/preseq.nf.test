@@ -1,0 +1,88 @@
+nextflow_process {
+
+    name "Test RustQC preseq lc_extrap output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "preseq"
+    tag "small"
+
+    test("preseq - regression") {
+
+        tag "regression"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/preseq/test.lc_extrap.txt"
+            assert path(actualFile).exists() : "preseq lc_extrap not found in: ${rustqcDir}"
+
+            snapshot(
+                path(actualFile).readLines()
+            ).match("preseq_regression")
+        }
+    }
+
+    test("preseq - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/preseq/test.lc_extrap.txt"
+            assert path(actualFile).exists() : "preseq lc_extrap not found in: ${rustqcDir}"
+
+            def upstreamFile = "${projectDir}/snapshots/rna/small/preseq/test.lc_extrap.txt"
+
+            // preseq lc_extrap: TSV with TOTAL_READS, EXPECTED_DISTINCT,
+            // LOWER_0.95CI, UPPER_0.95CI. Bootstrapping is stochastic so
+            // use relative tolerance for CI columns, though both tools
+            // produce identical results on this small dataset.
+            CompareUtils.tsvMatch(
+                path(actualFile).readLines(),
+                path(upstreamFile).readLines(),
+                [
+                    relTolerance: 0.05,  // 5% relative tolerance for CI bounds
+                    tolerance:    1.0,   // absolute tolerance for small values
+                ]
+            )
+        }
+    }
+}

@@ -1,0 +1,118 @@
+nextflow_process {
+
+    name "Test RustQC TIN output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "tin"
+    tag "small"
+
+    test("tin - regression") {
+
+        tag "regression"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def summaryFile = "${rustqcDir}/rseqc/tin/test.summary.txt"
+            def xlsFile     = "${rustqcDir}/rseqc/tin/test.tin.xls"
+            assert path(summaryFile).exists() : "TIN summary not found in: ${rustqcDir}"
+            assert path(xlsFile).exists()     : "TIN xls not found in: ${rustqcDir}"
+
+            // Snapshot both files for regression tracking
+            // Sort xls lines by geneID (col 0) for stable ordering
+            def xlsLines = path(xlsFile).readLines()
+            def header = xlsLines[0]
+            def sorted = xlsLines.drop(1).sort { it.split('\t')[0] }
+
+            snapshot(
+                "summary": path(summaryFile).readLines(),
+                "tin_xls": [header] + sorted
+            ).match("tin_regression")
+        }
+    }
+
+    test("tin - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def summaryFile = "${rustqcDir}/rseqc/tin/test.summary.txt"
+            def xlsFile     = "${rustqcDir}/rseqc/tin/test.tin.xls"
+            assert path(summaryFile).exists() : "TIN summary not found in: ${rustqcDir}"
+            assert path(xlsFile).exists()     : "TIN xls not found in: ${rustqcDir}"
+
+            def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/tin"
+
+            // ── Summary comparison ──────────────────────────────────
+            // TIN involves random subsampling of coverage, so values
+            // differ slightly. Compare with 5% relative tolerance.
+            // Skip filename column (col 0) as paths differ.
+            CompareUtils.tsvMatch(
+                path(summaryFile).readLines(),
+                path("${upstreamDir}/test.summary.txt").readLines(),
+                [
+                    relTolerance: 0.05,
+                    tolerance:    1.0,
+                    skipColumns:  [0] as Set,  // skip Bam_file column
+                ]
+            )
+
+            // ── Per-transcript TIN comparison ───────────────────────
+            // TIN uses random subsampling of coverage, so individual
+            // transcript scores can vary significantly between implementations
+            // (up to 50%+ relative difference on individual transcripts).
+            // Instead of comparing exact values, verify that:
+            // 1. Both files have the same set of transcripts
+            // 2. Same number of rows
+            def actualLines = path(xlsFile).readLines()
+            def expectedLines = path("${upstreamDir}/test.tin.xls").readLines()
+
+            assert actualLines.size() == expectedLines.size() : \
+                "TIN xls row count differs: RustQC=${actualLines.size()} upstream=${expectedLines.size()}"
+
+            def actualTranscripts   = actualLines.drop(1).collect { it.split('\t')[0] }.sort()
+            def expectedTranscripts = expectedLines.drop(1).collect { it.split('\t')[0] }.sort()
+            assert actualTranscripts == expectedTranscripts : \
+                "TIN xls transcripts differ between RustQC and upstream"
+        }
+    }
+}

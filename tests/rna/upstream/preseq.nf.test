@@ -1,0 +1,36 @@
+nextflow_process {
+
+    name "Test upstream preseq lc_extrap"
+    script "../../../modules/nf-core/preseq/lcextrap/main.nf"
+    process "PRESEQ_LCEXTRAP"
+
+    tag "upstream"
+    tag "rna"
+    tag "preseq"
+    tag "small"
+
+    test("small dataset - upstream preseq lc_extrap") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def output = process.out.lc_extrap[0][1]
+            assert path(output).exists()
+
+            snapshot(
+                path(output).readLines()
+            ).match("preseq_output")
+        }
+    }
+}

@@ -1,0 +1,82 @@
+nextflow_process {
+
+    name "Test RustQC flagstat output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "flagstat"
+    tag "small"
+
+    test("flagstat - regression") {
+
+        tag "regression"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/samtools/test.flagstat"
+            assert path(actualFile).exists() : "flagstat not found in: ${rustqcDir}"
+
+            snapshot(
+                path(actualFile).readLines()
+            ).match("flagstat_regression")
+        }
+    }
+
+    test("flagstat - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/samtools/test.flagstat"
+            assert path(actualFile).exists() : "flagstat not found in: ${rustqcDir}"
+
+            def upstreamFile = "${projectDir}/snapshots/rna/small/samtools/test.flagstat"
+
+            // flagstat output should be identical between RustQC and samtools
+            CompareUtils.textMatch(
+                path(actualFile).readLines(),
+                path(upstreamFile).readLines(),
+                []  // no prefixes to skip
+            )
+        }
+    }
+}

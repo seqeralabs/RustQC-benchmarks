@@ -1,0 +1,46 @@
+nextflow_process {
+
+    name "Test upstream RSeQC TIN"
+    script "../../../modules/nf-core/rseqc/tin/main.nf"
+    process "RSEQC_TIN"
+
+    tag "upstream"
+    tag "rna"
+    tag "tin"
+    tag "small"
+
+    test("small dataset - upstream TIN") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def summaryFile = process.out.txt[0][1]
+            def xlsFile     = process.out.xls[0][1]
+            assert path(summaryFile).exists()
+            assert path(xlsFile).exists()
+
+            // Sort xls by geneID (col 0) for stable comparison
+            def xlsLines = path(xlsFile).readLines()
+            def header = xlsLines[0]
+            def sorted = xlsLines.drop(1).sort { it.split('\t')[0] }
+
+            snapshot(
+                "summary": path(summaryFile).readLines(),
+                "tin_xls": [header] + sorted
+            ).match("tin_output")
+        }
+    }
+}

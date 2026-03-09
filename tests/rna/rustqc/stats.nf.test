@@ -1,0 +1,85 @@
+nextflow_process {
+
+    name "Test RustQC samtools stats output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "stats"
+    tag "samtools_stats"
+    tag "small"
+
+    test("samtools stats - regression") {
+
+        tag "regression"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/samtools/test.stats"
+            assert path(actualFile).exists() : "samtools stats not found in: ${rustqcDir}"
+
+            // Skip comment lines (start with #) for stable regression comparison
+            def lines = path(actualFile).readLines().findAll { !it.startsWith('#') }
+            snapshot(lines).match("samtools_stats_regression")
+        }
+    }
+
+    test("samtools stats - crosscheck vs upstream") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def actualFile = "${rustqcDir}/samtools/test.stats"
+            assert path(actualFile).exists() : "samtools stats not found in: ${rustqcDir}"
+
+            def upstreamFile = "${projectDir}/snapshots/rna/small/samtools/test.stats"
+
+            // Compare data lines only — comment headers differ between
+            // RustQC and samtools (version strings, command lines).
+            // CHK checksums should match if the data is identical.
+            CompareUtils.textMatch(
+                path(actualFile).readLines(),
+                path(upstreamFile).readLines(),
+                ['#']  // skip comment lines
+            )
+        }
+    }
+}

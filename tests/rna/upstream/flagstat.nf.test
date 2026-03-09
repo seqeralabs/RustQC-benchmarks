@@ -1,0 +1,37 @@
+nextflow_process {
+
+    name "Test upstream samtools flagstat"
+    script "../../../modules/nf-core/samtools/flagstat/main.nf"
+    process "SAMTOOLS_FLAGSTAT"
+
+    tag "upstream"
+    tag "rna"
+    tag "flagstat"
+    tag "small"
+
+    test("small dataset - upstream flagstat") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def output = process.out.flagstat[0][1]
+            assert path(output).exists()
+
+            snapshot(
+                path(output).readLines()
+            ).match("flagstat_output")
+        }
+    }
+}
