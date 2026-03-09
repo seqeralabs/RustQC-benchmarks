@@ -34,24 +34,27 @@ nextflow_process {
             assert process.success
 
             def allFiles = process.out.results[0][1].flatten()
-            def countsFile  = allFiles.find { it.toString().endsWith('.tsv') && !it.toString().endsWith('.summary') }
+            def biotypeFile = allFiles.find { it.toString().endsWith('biotype_counts.tsv') }
             def summaryFile = allFiles.find { it.toString().endsWith('.tsv.summary') }
-            assert countsFile  : "featureCounts .tsv not found in: ${allFiles}"
+            assert biotypeFile : "biotype_counts.tsv not found in: ${allFiles}"
             assert summaryFile : "featureCounts .summary not found in: ${allFiles}"
 
-            // Snapshot both files for regression tracking
-            // Filter comment lines from counts file
-            def countLines = path(countsFile).readLines().findAll { !it.startsWith('#') }
+            // Snapshot biotype counts and summary for regression tracking
             snapshot(
-                counts:  countLines,
+                counts:  path(biotypeFile).readLines(),
                 summary: path(summaryFile).readLines()
             ).match("featurecounts_regression")
         }
     }
 
-    // ── Crosscheck: validate RustQC output matches upstream featureCounts ─
-    // NOTE: RustQC featureCounts output format should match upstream.
-    // If formats differ, this test will need custom extraction logic.
+    // ── Crosscheck: validate RustQC biotype counts against upstream ────
+    // Upstream runs featureCounts with `-g gene_biotype` (one row per biotype).
+    // RustQC counts per-gene then aggregates by biotype attribute.
+    // These approaches handle ambiguous reads differently:
+    //   - Upstream: exons of same biotype merge → read overlapping two genes of
+    //     same biotype is NOT ambiguous
+    //   - RustQC: counts per gene_id first → same read IS ambiguous
+    // This causes ~6% fewer Assigned reads in RustQC (shifted to Ambiguity).
     test("featurecounts - crosscheck vs upstream") {
 
         tag "crosscheck"
@@ -76,50 +79,83 @@ nextflow_process {
             assert process.success
 
             def allFiles = process.out.results[0][1].flatten()
-            def countsFile  = allFiles.find { it.toString().endsWith('.tsv') && !it.toString().endsWith('.summary') }
+            def biotypeFile = allFiles.find { it.toString().endsWith('biotype_counts.tsv') }
             def summaryFile = allFiles.find { it.toString().endsWith('.tsv.summary') }
-            assert countsFile  : "featureCounts .tsv not found in: ${allFiles}"
+            assert biotypeFile : "biotype_counts.tsv not found in: ${allFiles}"
             assert summaryFile : "featureCounts .summary not found in: ${allFiles}"
 
             def upstreamDir = "${projectDir}/snapshots/rna/small/featurecounts"
 
-            // Counts: RustQC outputs biotype-level summary (Biotype\tCount),
-            // upstream featureCounts outputs per-gene counts (Geneid\tChr\t...).
-            // These are structurally incompatible — skip per-gene crosscheck.
-            // Validate RustQC output structure instead.
-            def countLines = path(countsFile).readLines().findAll { !it.startsWith('#') }
-            assert countLines.size() > 1 : "featureCounts output is empty"
-            assert countLines[0].split('\t').size() == 2 : "Expected 2-column biotype summary"
+            // ── Biotype counts comparison ─────────────────────────────────
+            // Upstream: 7-col featureCounts output with -g gene_biotype
+            //   → extract col 1 (biotype) and col 7 (count)
+            // RustQC: 2-col biotype_counts.tsv (Biotype\tCount)
 
-            // Summary: same schema between tools but different counting logic.
-            // RustQC assigns ~6% fewer reads, and Ambiguity counts differ
-            // substantially (~126%) due to different overlap-resolution strategy.
-            // Validate structure and that values are in same order of magnitude.
+            // Parse RustQC biotype counts (skip header)
+            def actualBiotypes = [:]
+            path(biotypeFile).readLines().each { line ->
+                if (line.startsWith('Biotype')) return
+                def parts = line.split('\t')
+                if (parts.size() >= 2) actualBiotypes[parts[0]] = parts[1].trim() as Integer
+            }
+
+            // Parse upstream biotype counts (skip comment + header, extract col 1 & 7)
+            def expectedBiotypes = [:]
+            path("${upstreamDir}/featureCounts.tsv").readLines().each { line ->
+                if (line.startsWith('#') || line.startsWith('Geneid')) return
+                def parts = line.split('\t')
+                if (parts.size() >= 7) expectedBiotypes[parts[0]] = parts[6].trim() as Integer
+            }
+
+            // Same set of biotypes
+            assert actualBiotypes.keySet().sort() == expectedBiotypes.keySet().sort() : \
+                "Biotype sets differ: RustQC=${actualBiotypes.keySet().sort()} upstream=${expectedBiotypes.keySet().sort()}"
+
+            // Compare per-biotype counts with tolerance
+            // Most biotypes match exactly; protein_coding differs ~6% due to
+            // ambiguity resolution; pseudogene ~16%; lincRNA ~2%.
+            def mismatches = []
+            actualBiotypes.each { biotype, actual ->
+                def expected = expectedBiotypes[biotype]
+                if (actual != expected) {
+                    def relDiff = expected > 0 ? Math.abs(actual - expected) / expected : (actual > 0 ? 1.0 : 0.0)
+                    mismatches << "${biotype}: RustQC=${actual} upstream=${expected} (${String.format('%.1f', relDiff * 100)}%)"
+                    // Fail if any biotype differs by more than 20%
+                    // (accounts for small-count biotypes where 1-read diff = large %)
+                    assert relDiff <= 0.20 || Math.abs(actual - expected) <= 5 : \
+                        "${biotype} exceeds tolerance: RustQC=${actual} upstream=${expected} (${String.format('%.1f', relDiff * 100)}%)"
+                }
+            }
+
+            // Verify zero-count biotypes agree exactly
+            expectedBiotypes.each { biotype, expected ->
+                if (expected == 0) {
+                    assert actualBiotypes[biotype] == 0 : \
+                        "${biotype} should be 0 but RustQC reports ${actualBiotypes[biotype]}"
+                }
+            }
+
+            // ── Summary comparison ────────────────────────────────────────
             def actualSummary   = path(summaryFile).readLines().findAll { it.trim() }
             def expectedSummary = path("${upstreamDir}/featureCounts.tsv.summary").readLines().findAll { it.trim() }
 
-            // Same number of categories
-            assert actualSummary.size() == expectedSummary.size() : \
-                "Summary line count: ${actualSummary.size()} vs ${expectedSummary.size()}"
-
-            // Same row labels (first column)
+            // Same row labels
             def actualLabels   = actualSummary.collect { it.split('\t')[0] }
             def expectedLabels = expectedSummary.collect { it.split('\t')[0] }
             assert actualLabels == expectedLabels : \
                 "Summary labels differ: ${actualLabels} vs ${expectedLabels}"
 
-            // Rows that are zero in upstream should be zero in RustQC (and vice versa)
-            def parseVal = { line -> line.split('\t').size() > 1 ? line.split('\t')[1] : null }
+            // Zero-value rows must agree
             expectedSummary.eachWithIndex { line, i ->
                 if (i == 0) return  // skip header
-                def ev = parseVal(line)
-                def av = parseVal(actualSummary[i])
-                if (ev != null && av != null) {
+                def parts = line.split('\t')
+                def aParts = actualSummary[i].split('\t')
+                if (parts.size() >= 2 && aParts.size() >= 2) {
                     try {
-                        def evi = ev.trim() as Integer
-                        def avi = av.trim() as Integer
-                        if (evi == 0) {
-                            assert avi == 0 : "Expected 0 for ${actualLabels[i]}, got ${avi}"
+                        def ev = parts[1].trim() as Integer
+                        def av = aParts[1].trim() as Integer
+                        if (ev == 0) {
+                            assert av == 0 : "Expected 0 for ${actualLabels[i]}, got ${av}"
                         }
                     } catch (NumberFormatException e) { /* skip header */ }
                 }
