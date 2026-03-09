@@ -22,7 +22,7 @@
                 "Proper-paired reads map to different chrom:0"
             ]
         ],
-        "timestamp": "2026-03-09T00:25:44.978831",
+        "timestamp": "2026-03-09T07:17:10.319492",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "26.01.1"

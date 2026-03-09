@@ -93,23 +93,14 @@ nextflow_process {
                 [tolerance: 10.0, relTolerance: 0.02, skipColumns: [4, 5, 6, 7, 10, 11, 12, 13] as Set]
             )
 
-            // intercept_slope: different format between tools
-            // RustQC: "intercept\t0.0299..." / "slope\t1.681..."
-            // Upstream: "test - dupRadar Int (...): 0.0318..." / "test - dupRadar Sl (...): 1.601..."
+            // intercept_slope: both tools now use the same format
+            // "test - dupRadar Int (duprate at low read counts): <value>"
+            // "test - dupRadar Sl (progression of the duplication rate): <value>"
             // Extract numeric values and compare with tolerance
             def actualSlope = path(slopeFile).readLines()
             def upstreamSlope = path("${projectDir}/snapshots/rna/small/dupradar/intercept_slope.txt").readLines()
 
-            // Parse numeric values from each format
-            def parseRustqcSlope = { lines ->
-                def vals = [:]
-                lines.each { line ->
-                    def parts = line.split('\t')
-                    if (parts.size() >= 2) vals[parts[0].trim()] = parts[1].trim() as Double
-                }
-                vals
-            }
-            def parseUpstreamSlope = { lines ->
+            def parseSlopeFile = { lines ->
                 def vals = [:]
                 lines.each { line ->
                     if (line.contains('Int')) vals['intercept'] = (line.split(':')[-1].trim()) as Double
@@ -118,11 +109,11 @@ nextflow_process {
                 vals
             }
 
-            def actualVals   = parseRustqcSlope(actualSlope)
-            def expectedVals = parseUpstreamSlope(upstreamSlope)
+            def actualVals   = parseSlopeFile(actualSlope)
+            def expectedVals = parseSlopeFile(upstreamSlope)
 
-            assert actualVals.intercept != null : "No intercept in RustQC output"
-            assert actualVals.slope != null     : "No slope in RustQC output"
+            assert actualVals.intercept != null : "No intercept in RustQC output: ${actualSlope}"
+            assert actualVals.slope != null     : "No slope in RustQC output: ${actualSlope}"
             assert expectedVals.intercept != null : "No intercept in upstream output"
             assert expectedVals.slope != null     : "No slope in upstream output"
 
