@@ -16,7 +16,8 @@ Initial release of seqeralabs/rustqc-benchmarks, created with the [nf-core](http
 
 ### `Changed`
 
-- Remove `bed` parameter requirement — BED is now optional and auto-derived from GTF via GTF2BED when not provided
+- Remove `bed` parameter — BED is always auto-derived from GTF via GTF2BED (no user-provided BED input)
+- Make `--gtf` a required parameter (like `--bam`)
 - Refactor workflow to share a single GUNZIP_GTF process across upstream and RustQC branches
 - Refactor workflow to use unified `ch_bed` channel for all BED-dependent tools
 

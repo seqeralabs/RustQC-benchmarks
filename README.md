@@ -38,7 +38,7 @@ There are two layers of tests, both using [nf-test](https://www.nf-test.com):
 
 ### GTF→BED conversion
 
-When no `--bed` file is provided, the pipeline automatically derives a BED gene model from the GTF annotation using the **GTF2BED** local module. This BED file (`ch_bed`) is used by the upstream RSeQC Python tools that require a BED gene model (read_distribution, inner_distance, junction_annotation, junction_saturation, infer_experiment, tin). RustQC does not need a BED file — it works directly from the GTF annotation.
+Both BAM and GTF are required inputs. The pipeline automatically derives a BED gene model from the GTF annotation using the **GTF2BED** local module. This BED file is used by the upstream RSeQC Python tools that require a BED gene model (read_distribution, inner_distance, junction_annotation, junction_saturation, infer_experiment, tin). RustQC does not need a BED file — it works directly from the GTF annotation.
 
 ### Upstream tests (`tests/rna/upstream/`)
 
@@ -195,19 +195,18 @@ nextflow run main.nf -profile rna_test,docker \
 
 ### Key parameters
 
-| Parameter         | Default                         | Description                                                         |
-| ----------------- | ------------------------------- | ------------------------------------------------------------------- |
-| `--run_rustqc`    | `true`                          | Run RustQC                                                          |
-| `--run_upstream`  | `false`                         | Run upstream reference tools                                        |
-| `--rustqc_image`  | `ghcr.io/seqeralabs/rustqc:dev` | RustQC Docker image                                                 |
-| `--rustqc_binary` | `null`                          | Local RustQC binary (overrides Docker)                              |
-| `--bam` / `--bai` | _(from profile)_                | Input BAM and index                                                 |
-| `--gtf`           | _(from profile)_                | GTF annotation file                                                 |
-| `--bed`           | `null` _(optional)_             | BED gene model; auto-derived from GTF via GTF2BED when not provided |
-| `--sample_id`     | `test`                          | Sample identifier (used in output filenames)                        |
-| `--paired`        | `true`                          | Paired-end data                                                     |
-| `--strandedness`  | `unstranded`                    | Library strandedness                                                |
-| `--outdir`        | `results`                       | Output directory                                                    |
+| Parameter         | Default                         | Description                                  |
+| ----------------- | ------------------------------- | -------------------------------------------- |
+| `--run_rustqc`    | `true`                          | Run RustQC                                   |
+| `--run_upstream`  | `false`                         | Run upstream reference tools                 |
+| `--rustqc_image`  | `ghcr.io/seqeralabs/rustqc:dev` | RustQC Docker image                          |
+| `--rustqc_binary` | `null`                          | Local RustQC binary (overrides Docker)       |
+| `--bam` / `--bai` | _(from profile)_                | Input BAM and index **(required)**           |
+| `--gtf`           | _(from profile)_                | GTF annotation file **(required)**           |
+| `--sample_id`     | `test`                          | Sample identifier (used in output filenames) |
+| `--paired`        | `true`                          | Paired-end data                              |
+| `--strandedness`  | `unstranded`                    | Library strandedness                         |
+| `--outdir`        | `results`                       | Output directory                             |
 
 ## Updating snapshots
 

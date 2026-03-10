@@ -56,8 +56,7 @@ workflow RUSTQC_BENCHMARKS {
 
     def bam_file = file(params.bam, checkIfExists: true)
     def bai_file = params.bai ? file(params.bai, checkIfExists: true) : null
-    def gtf_file = params.gtf ? file(params.gtf, checkIfExists: true) : null
-    def bed_file = params.bed ? file(params.bed, checkIfExists: true) : null
+    def gtf_file = file(params.gtf, checkIfExists: true)
 
     ch_versions       = channel.empty()
     ch_multiqc_files  = channel.empty()
@@ -78,7 +77,7 @@ workflow RUSTQC_BENCHMARKS {
     //
     // MODULE: RustQC RNA (single-pass, all tools)
     //
-    if (params.run_rustqc && gtf_file) {
+    if (params.run_rustqc) {
         RUSTQC_RNA(
             ch_bam_bai,
             gtf_file,
@@ -95,26 +94,11 @@ workflow RUSTQC_BENCHMARKS {
         //
         // Decompress GTF if gzipped (needed by Qualimap and GTF2BED below)
         //
-        if (gtf_file && gtf_file.toString().endsWith('.gz')) {
+        if (gtf_file.toString().endsWith('.gz')) {
             GUNZIP_GTF(channel.value([ [:], gtf_file ]))
             ch_plain_gtf = GUNZIP_GTF.out.gunzip  // tuple(meta, gtf)
-        } else if (gtf_file) {
+        } else {
             ch_plain_gtf = channel.value([ [:], gtf_file ])
-        } else {
-            ch_plain_gtf = channel.empty()
-        }
-
-        //
-        // Convert GTF to BED12 if no BED provided (needed by RSeQC tools below)
-        //
-        if (bed_file) {
-            ch_bed = channel.value(bed_file)
-        } else if (gtf_file) {
-            GTF2BED(ch_plain_gtf.map{ _meta, f -> f })
-            ch_bed = GTF2BED.out.bed
-            ch_versions = ch_versions.mix(GTF2BED.out.versions)
-        } else {
-            ch_bed = channel.empty()
         }
 
         // Tools that only need BAM (no GTF/BED/BAI required)
@@ -139,34 +123,37 @@ workflow RUSTQC_BENCHMARKS {
 
         // Tools that require GTF annotation
         //
-        if (gtf_file) {
-            // dupRadar: tuple(meta, bam) + tuple(meta, gtf)
-            DUPRADAR(ch_bam, channel.value([ meta, gtf_file ]))
-            ch_versions = ch_versions.mix(DUPRADAR.out.versions)
 
-            // featureCounts: tuple(meta, bams, annotation) — all in one tuple
-            // Biotype-level grouping (-g gene_biotype) for biotype QC comparison
-            SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
-            // Per-gene grouping (-g gene_id) for gene-level count comparison with RustQC
-            SUBREAD_FEATURECOUNTS_GENEID(channel.value([ meta, bam_file, gtf_file ]))
+        // dupRadar: tuple(meta, bam) + tuple(meta, gtf)
+        DUPRADAR(ch_bam, channel.value([ meta, gtf_file ]))
+        ch_versions = ch_versions.mix(DUPRADAR.out.versions)
 
-            // Qualimap: name-sort BAM, then run qualimap rnaseq
-            // Mirrors nf-core/rnaseq: GUNZIP_GTF -> SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
-            // (GUNZIP_GTF already handled above for all GTF consumers)
-            SAMTOOLS_SORT_QUALIMAP(
-                ch_bam,
-                channel.value([ [:], [] ]),
-                ''
-            )
-            QUALIMAP_RNASEQ(
-                SAMTOOLS_SORT_QUALIMAP.out.bam,
-                ch_plain_gtf
-            )
-        }
+        // featureCounts: tuple(meta, bams, annotation) — all in one tuple
+        // Biotype-level grouping (-g gene_biotype) for biotype QC comparison
+        SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
+        // Per-gene grouping (-g gene_id) for gene-level count comparison with RustQC
+        SUBREAD_FEATURECOUNTS_GENEID(channel.value([ meta, bam_file, gtf_file ]))
+
+        // Qualimap: name-sort BAM, then run qualimap rnaseq
+        // Mirrors nf-core/rnaseq: GUNZIP_GTF -> SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
+        // (GUNZIP_GTF already handled above for all GTF consumers)
+        SAMTOOLS_SORT_QUALIMAP(
+            ch_bam,
+            channel.value([ [:], [] ]),
+            ''
+        )
+        QUALIMAP_RNASEQ(
+            SAMTOOLS_SORT_QUALIMAP.out.bam,
+            ch_plain_gtf
+        )
 
         // Tools that require BAI + BED gene model
-        // Uses ch_bed which is either the user-provided BED or converted from GTF
+        // BED is always derived from GTF via GTF2BED
         //
+        GTF2BED(ch_plain_gtf.map{ _meta, f -> f })
+        ch_bed = GTF2BED.out.bed
+        ch_versions = ch_versions.mix(GTF2BED.out.versions)
+
         RSEQC_INFEREXPERIMENT(ch_bam_bai, ch_bed)
         RSEQC_READDISTRIBUTION(ch_bam_bai, ch_bed)
         RSEQC_JUNCTIONANNOTATION(ch_bam_bai, ch_bed)
@@ -184,15 +171,10 @@ workflow RUSTQC_BENCHMARKS {
         ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_FLAGSTAT.out.flagstat.collect{ _meta, f -> f })
         ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_IDXSTATS.out.idxstats.collect{ _meta, f -> f })
         ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_STATS.out.stats.collect{ _meta, f -> f })
-
-        if (gtf_file) {
-            ch_multiqc_files = ch_multiqc_files.mix(DUPRADAR.out.multiqc.collect{ _meta, f -> f })
-            ch_multiqc_files = ch_multiqc_files.mix(SUBREAD_FEATURECOUNTS.out.summary.collect{ _meta, f -> f })
-            ch_multiqc_files = ch_multiqc_files.mix(SUBREAD_FEATURECOUNTS_GENEID.out.summary.collect{ _meta, f -> f })
-            ch_multiqc_files = ch_multiqc_files.mix(QUALIMAP_RNASEQ.out.results.collect{ _meta, f -> f })
-        }
-
-        // BED-dependent RSeQC tools: ch_bed is either user-provided or GTF-derived
+        ch_multiqc_files = ch_multiqc_files.mix(DUPRADAR.out.multiqc.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(SUBREAD_FEATURECOUNTS.out.summary.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(SUBREAD_FEATURECOUNTS_GENEID.out.summary.collect{ _meta, f -> f })
+        ch_multiqc_files = ch_multiqc_files.mix(QUALIMAP_RNASEQ.out.results.collect{ _meta, f -> f })
         ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INFEREXPERIMENT.out.txt.collect{ _meta, f -> f })
         ch_multiqc_files = ch_multiqc_files.mix(RSEQC_READDISTRIBUTION.out.txt.collect{ _meta, f -> f })
         ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONANNOTATION.out.log.collect{ _meta, f -> f })
