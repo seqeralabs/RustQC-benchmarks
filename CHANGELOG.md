@@ -11,8 +11,7 @@ Initial release of seqeralabs/rustqc-benchmarks, created with the [nf-core](http
 
 - Add Qualimap rnaseq upstream module with name-sorted BAM (via `SAMTOOLS_SORT_QUALIMAP`) to the benchmarking pipeline
 - Add GTF2BED local module (`modules/local/gtf2bed/`, `bin/gtf2bed`) to auto-derive BED gene model from GTF annotation
-- Add `--bed` flag to RUSTQC_RNA module for read_distribution parity with upstream RSeQC
-- Add shared `ch_bed` channel used by all BED-dependent RSeQC tools (read_distribution, inner_distance, junction_annotation, junction_saturation)
+- Add shared `ch_bed` channel used by all BED-dependent upstream RSeQC tools (read_distribution, inner_distance, junction_annotation, junction_saturation, infer_experiment, tin)
 - Update all comparison report templates to reflect new module outputs
 
 ### `Changed`

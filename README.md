@@ -38,7 +38,7 @@ There are two layers of tests, both using [nf-test](https://www.nf-test.com):
 
 ### GTF→BED conversion
 
-When no `--bed` file is provided, the pipeline automatically derives a BED gene model from the GTF annotation using the **GTF2BED** local module. This BED file (`ch_bed`) is then used for all BED-dependent RSeQC tools (read_distribution, inner_distance, junction_annotation, junction_saturation) and is also passed to RustQC via the `--bed` flag for read_distribution parity.
+When no `--bed` file is provided, the pipeline automatically derives a BED gene model from the GTF annotation using the **GTF2BED** local module. This BED file (`ch_bed`) is used by the upstream RSeQC Python tools that require a BED gene model (read_distribution, inner_distance, junction_annotation, junction_saturation, infer_experiment, tin). RustQC does not need a BED file — it works directly from the GTF annotation.
 
 ### Upstream tests (`tests/rna/upstream/`)
 
