@@ -18,19 +18,19 @@ process RUSTQC_RNA {
     script:
     def args           = task.ext.args ?: ''
     def prefix         = task.ext.prefix ?: "${meta.id}"
-    def paired_flag    = meta.single_end ? '' : '-p'
+    def paired_flag    = meta.single_end ? '' : '--paired'
     def dup_flag       = params.skip_dup_check ? '--skip-dup-check' : ''
-    def config_flag    = params.rustqc_config ? "-c ${params.rustqc_config}" : ''
+    def config_flag    = params.rustqc_config ? "--config ${params.rustqc_config}" : ''
     def biotype_flag   = params.biotype_attribute ? "--biotype-attribute ${params.biotype_attribute}" : ''
-    def stranded_flag  = meta.strandedness == 'reverse' ? '-s 2' : meta.strandedness == 'forward' ? '-s 1' : '-s 0'
+    def stranded_flag  = meta.strandedness == 'reverse' ? '--stranded 2' : meta.strandedness == 'forward' ? '--stranded 1' : '--stranded 0'
     """
     rustqc rna \\
         ${bam} \\
         --gtf ${gtf} \\
         ${paired_flag} \\
         ${stranded_flag} \\
-        -t ${task.cpus} \\
-        -o rustqc \\
+        --threads ${task.cpus} \\
+        --outdir rustqc \\
         ${dup_flag} \\
         ${config_flag} \\
         ${biotype_flag} \\
