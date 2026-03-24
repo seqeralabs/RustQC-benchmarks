@@ -39,7 +39,7 @@ jobs:
     needs: configure
     steps:
       - name: Install Nextflow
-        uses: nf-core/setup-nextflow@561fcfc7146dcb12e3871909b635ab092a781f34 # ratchet:nf-core/setup-nextflow@v2.0.0
+        uses: nf-core/setup-nextflow@6c2e22b4d901f0c42ca66c5069f8026df026d165 # ratchet:nf-core/setup-nextflow@v2.1.4
 
       - name: Disk space cleanup
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # ratchet:jlumbroso/free-disk-space@v1.3.1
