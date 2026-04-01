@@ -40,7 +40,9 @@ jobs:
           config: ${{ github.workspace }}/.nf-core.yml
 
       - name: Install dependencies
-        run: uv tool install nf-core==${{ steps.read_yml.outputs['nf_core_version'] }}
+        run: |
+          uv tool install nf-core==${{ steps.read_yml.outputs['nf_core_version'] }}
+          uv tool install pre-commit
 
       - name: Run nf-core pipelines lint
         if: ${{ github.base_ref != 'master' }}
