@@ -1,2 +1,12 @@
 .DS_Store
 pipeline_info/*.{html,json,txt,yml}
+# TIN values have last-digit FP differences across platforms (tested separately in tin.nf.test)
+**/tin/test.tin.xls
+**/tin/test.summary.txt
+# Preseq has seed-dependent variation (tested separately in preseq.nf.test)
+**/preseq/test.lc_extrap.txt
+# MultiQC reports contain timestamps and are non-deterministic
+multiqc/multiqc_report.html
+multiqc/multiqc_data/multiqc.log
+multiqc/multiqc_data/multiqc.parquet
+multiqc/multiqc_data/multiqc_data.json
