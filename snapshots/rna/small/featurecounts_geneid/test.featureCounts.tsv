@@ -1,4 +1,4 @@
-# Program:featureCounts v2.0.6; Command:"featureCounts" "-B" "-C" "-g" "gene_id" "-t" "exon" "-s" "2" "-p" "-T" "2" "-a" "chr6.gtf.gz" "-s" "2" "-o" "test.featureCounts.tsv" "test.bam" 
+# Program:featureCounts v2.0.6; Command:"featureCounts" "-B" "-C" "-g" "gene_id" "-t" "exon" "-s" "2" "-p" "-T" "2" "-a" "chr6.gtf.gz" "-s" "2" "-o" "test.featureCounts.tsv" "test.bam"
 Geneid	Chr	Start	End	Strand	Length	test.bam
 ENSG00000271530	6	95124	95454	+	331	0
 ENSG00000220212	6	105919	106856	-	938	0
