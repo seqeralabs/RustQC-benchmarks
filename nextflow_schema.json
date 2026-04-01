@@ -88,7 +88,7 @@
             "properties": {
                 "rustqc_image": {
                     "type": "string",
-                    "default": "ghcr.io/seqeralabs/rustqc:dev",
+                    "default": "ghcr.io/seqeralabs/rustqc:0.1.0",
                     "description": "Docker image for RustQC."
                 },
                 "rustqc_binary": {
