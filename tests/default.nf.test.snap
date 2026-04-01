@@ -153,7 +153,7 @@
             [
                 "junction_saturation_known_rseqc_rustqc.txt:md5,0ef01f52b1d9d45842bd56384127e336",
                 "junction_saturation_novel_rseqc_rustqc.txt:md5,250cf7cc53999d18019ba4a2a77e489a",
-                "llms-full.txt:md5,5a2bf9f7cab49d1cd2ee1dbb5b9624a2",
+                "llms-full.txt:md5,60264e6abff81a935db4b4eda393c23b",
                 "multiqc_citations.txt:md5,a1a0a7cb1b52eeb904d051a43bbb0ea5",
                 "multiqc_dupradar.txt:md5,f4dc472cb3ac39b97a56eea1b79eaaf0",
                 "multiqc_featurecounts_biotype_plot.txt:md5,ea0cfe2de7b7d3ab672418c98a2a26e7",
@@ -166,9 +166,9 @@
                 "multiqc_samtools_flagstat_samtools_rustqc.txt:md5,7afd2524a088c38aa4e46462afe3ad13",
                 "multiqc_samtools_idxstats_samtools_rustqc.txt:md5,4447166758e67c7b3c1ca954522cb0dc",
                 "multiqc_samtools_stats_samtools_rustqc.txt:md5,1684429e5cf1764f07c8ee5daf71fb23",
-                "multiqc_sources.txt:md5,f8c5007e4e842697515b62b74b02ce28",
-                "preseq_complexity_plot_molecules.txt:md5,e7c368c1eb6180f7af184a822aea1745",
-                "preseq_preseq_rustqc.txt:md5,6716808396eea0313f38ecbe84c91cb0",
+                "multiqc_sources.txt:md5,bda69523cb2ec6d9bc588a717d031859",
+                "preseq_complexity_plot_molecules.txt:md5,48fb21d14790381449cfb9458e919ac3",
+                "preseq_preseq_rustqc.txt:md5,eba58384902b2f6d12691de45fd0811f",
                 "qualimap_gene_coverage_profile_Counts.txt:md5,b5b5c8a9df82ba0d9735ef5c8a805a90",
                 "qualimap_gene_coverage_profile_Normalised.txt:md5,a94186c45076621a36dfa4e1b6e9d154",
                 "qualimap_genomic_origin.txt:md5,866d747fb749b38b3f9a0c7ef5cf7e04",
@@ -199,8 +199,8 @@
                 "test_dup_intercept_mqc.txt:md5,554bb56eaed16300a8d5fe993b53a98a",
                 "test_duprateExpBoxplot.png:md5,5de9ba7823f658b672c0274036861276",
                 "test_duprateExpBoxplot.svg:md5,cc38d85ddd6c104e5ed0ce83859b7def",
-                "test_duprateExpDens.png:md5,66dbe6ee359b60172399254cd35be2e8",
-                "test_duprateExpDens.svg:md5,581e2bb0c6df4655374eed77488e5053",
+                "test_duprateExpDens.png:md5,751e9c6c76454cb5ea58da11a2803ec6",
+                "test_duprateExpDens.svg:md5,fdccdb0c70728c69d74f33aecac7a978",
                 "test_duprateExpDensCurve_mqc.txt:md5,adede96f26dfadfce15c3ec89a9d28fc",
                 "test_expressionHist.png:md5,caa31b152c479bb3fcb9bf3374878747",
                 "test_expressionHist.svg:md5,ac93e26f1a6edd5820caf951d58f8a76",
@@ -222,7 +222,7 @@
                 "Reads Genomic Origin.svg:md5,df4fed6b541b95300313a7e33c2ea62b",
                 "Transcript coverage histogram.png:md5,3996bc594870c09d092818a8eb97a4e2",
                 "Transcript coverage histogram.svg:md5,6abd4b50dc75921e41429c9da5d5d8a6",
-                "qualimapReport.html:md5,48fcd9af2f4084eac5768a640d34fb62",
+                "qualimapReport.html:md5,576d64fdba970cbb167527202528c2da",
                 "coverage_profile_along_genes_(high).txt:md5,1898af18056981dcba09f43db34bca88",
                 "coverage_profile_along_genes_(low).txt:md5,fbe90dea7baddecaf432dd66ebc30a6f",
                 "coverage_profile_along_genes_(total).txt:md5,4232a441df31a4506171166db0e57985",
@@ -264,6 +264,6 @@
             "nf-test": "0.9.3",
             "nextflow": "25.10.2"
         },
-        "timestamp": "2026-04-01T16:37:43.063692"
+        "timestamp": "2026-04-01T20:26:47.882277"
     }
 }
