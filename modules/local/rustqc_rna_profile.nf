@@ -1,7 +1,7 @@
 process RUSTQC_RNA_PROFILE {
     tag { "${meta.id}_${ncpus}cores_rep${replicate}" }
 
-    container "${params.rustqc_image ?: 'ghcr.io/seqeralabs/rustqc:0.1.0'}"
+    container "${params.rustqc_image ?: 'ghcr.io/seqeralabs/rustqc:dev'}"
 
     cpus { ncpus }
     memory '28.GB'
