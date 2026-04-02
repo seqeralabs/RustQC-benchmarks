@@ -4,24 +4,24 @@
             {
                 "counts": [
                     "Biotype\tCount",
-                    "protein_coding\t42331",
-                    "pseudogene\t124",
+                    "protein_coding\t44086",
                     "processed_transcript\t116",
-                    "antisense\t64",
-                    "lincRNA\t49",
-                    "sense_overlapping\t30",
+                    "pseudogene\t112",
+                    "antisense\t62",
+                    "lincRNA\t47",
+                    "sense_overlapping\t33",
                     "misc_RNA\t4",
-                    "snRNA\t3",
-                    "miRNA\t2",
-                    "snoRNA\t2",
+                    "snoRNA\t3",
+                    "miRNA\t1",
                     "3prime_overlapping_ncrna\t0",
                     "polymorphic_pseudogene\t0",
                     "rRNA\t0",
-                    "sense_intronic\t0"
+                    "sense_intronic\t0",
+                    "snRNA\t0"
                 ],
                 "summary": [
                     "Status\ttest.bam",
-                    "Assigned\t42725",
+                    "Assigned\t42173",
                     "Unassigned_Unmapped\t0",
                     "Unassigned_Read_Type\t0",
                     "Unassigned_Singleton\t0",
@@ -32,9 +32,9 @@
                     "Unassigned_MultiMapping\t5496",
                     "Unassigned_Secondary\t0",
                     "Unassigned_NonSplit\t0",
-                    "Unassigned_NoFeatures\t2545",
+                    "Unassigned_NoFeatures\t2645",
                     "Unassigned_Overlapping_Length\t0",
-                    "Unassigned_Ambiguity\t2073"
+                    "Unassigned_Ambiguity\t2525"
                 ]
             }
         ],
@@ -42,6 +42,6 @@
             "nf-test": "0.9.3",
             "nextflow": "25.10.2"
         },
-        "timestamp": "2026-04-01T15:53:03.547526"
+        "timestamp": "2026-04-02T11:50:19.368179"
     }
 }

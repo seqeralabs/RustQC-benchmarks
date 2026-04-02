@@ -9206,6 +9206,8 @@ IS	7995	0	0	0	0
 IS	7996	0	0	0	0
 IS	7997	0	0	0	0
 IS	7998	1	1	0	0
+IS	7999	0	0	0	0
+IS	8000	1924	1910	14	0
 # RL, read length. Use `plot-bamstats -p <outdir> <file>` to generate plots
 RL	30	1
 RL	32	1

@@ -82,6 +82,7 @@
                 "rustqc/featurecounts/test.biotype_counts.tsv",
                 "rustqc/featurecounts/test.biotype_counts_mqc.tsv",
                 "rustqc/featurecounts/test.biotype_counts_rrna_mqc.tsv",
+                "rustqc/featurecounts/test.featureCounts.biotype.tsv.summary",
                 "rustqc/featurecounts/test.featureCounts.tsv",
                 "rustqc/featurecounts/test.featureCounts.tsv.summary",
                 "rustqc/preseq",
@@ -153,7 +154,7 @@
             [
                 "junction_saturation_known_rseqc_rustqc.txt:md5,0ef01f52b1d9d45842bd56384127e336",
                 "junction_saturation_novel_rseqc_rustqc.txt:md5,250cf7cc53999d18019ba4a2a77e489a",
-                "llms-full.txt:md5,60264e6abff81a935db4b4eda393c23b",
+                "llms-full.txt:md5,8f9f1107fc30ad775eff14e3eeb82113",
                 "multiqc_citations.txt:md5,a1a0a7cb1b52eeb904d051a43bbb0ea5",
                 "multiqc_dupradar.txt:md5,f4dc472cb3ac39b97a56eea1b79eaaf0",
                 "multiqc_featurecounts_biotype_plot.txt:md5,ea0cfe2de7b7d3ab672418c98a2a26e7",
@@ -166,7 +167,7 @@
                 "multiqc_samtools_flagstat_samtools_rustqc.txt:md5,7afd2524a088c38aa4e46462afe3ad13",
                 "multiqc_samtools_idxstats_samtools_rustqc.txt:md5,4447166758e67c7b3c1ca954522cb0dc",
                 "multiqc_samtools_stats_samtools_rustqc.txt:md5,1684429e5cf1764f07c8ee5daf71fb23",
-                "multiqc_sources.txt:md5,bda69523cb2ec6d9bc588a717d031859",
+                "multiqc_sources.txt:md5,f52f2e27da9c4a72cdf571027e25e592",
                 "preseq_complexity_plot_molecules.txt:md5,48fb21d14790381449cfb9458e919ac3",
                 "preseq_preseq_rustqc.txt:md5,eba58384902b2f6d12691de45fd0811f",
                 "qualimap_gene_coverage_profile_Counts.txt:md5,b5b5c8a9df82ba0d9735ef5c8a805a90",
@@ -199,7 +200,7 @@
                 "test_dup_intercept_mqc.txt:md5,554bb56eaed16300a8d5fe993b53a98a",
                 "test_duprateExpBoxplot.png:md5,5de9ba7823f658b672c0274036861276",
                 "test_duprateExpBoxplot.svg:md5,cc38d85ddd6c104e5ed0ce83859b7def",
-                "test_duprateExpDens.png:md5,751e9c6c76454cb5ea58da11a2803ec6",
+                "test_duprateExpDens.png:md5,a6192430672b528a3611cf19832d2f18",
                 "test_duprateExpDens.svg:md5,fdccdb0c70728c69d74f33aecac7a978",
                 "test_duprateExpDensCurve_mqc.txt:md5,adede96f26dfadfce15c3ec89a9d28fc",
                 "test_expressionHist.png:md5,caa31b152c479bb3fcb9bf3374878747",
@@ -208,8 +209,9 @@
                 "test.biotype_counts.tsv:md5,b4bee000391849efd3cee70fb63dc704",
                 "test.biotype_counts_mqc.tsv:md5,867677b022312988f0e12e9825b4d4d9",
                 "test.biotype_counts_rrna_mqc.tsv:md5,31c68d05ffe90d1e3eb2cb2ef9a7b4d9",
+                "test.featureCounts.biotype.tsv.summary:md5,a12f0baf70631499b79bffbe67bcdcf3",
                 "test.featureCounts.tsv:md5,c790b991f7544b0daf7db2d51a101bec",
-                "test.featureCounts.tsv.summary:md5,a12f0baf70631499b79bffbe67bcdcf3",
+                "test.featureCounts.tsv.summary:md5,2dba8f90d0ec98ca011ac476ec136163",
                 "Coverage Profile Along Genes (High).png:md5,df24c54868230e5520b662d72efb94d1",
                 "Coverage Profile Along Genes (High).svg:md5,d2b4b774578258e451562c61bead6e40",
                 "Coverage Profile Along Genes (Low).png:md5,097bd536231c53b454fefa8790e986be",
@@ -222,7 +224,7 @@
                 "Reads Genomic Origin.svg:md5,df4fed6b541b95300313a7e33c2ea62b",
                 "Transcript coverage histogram.png:md5,3996bc594870c09d092818a8eb97a4e2",
                 "Transcript coverage histogram.svg:md5,6abd4b50dc75921e41429c9da5d5d8a6",
-                "qualimapReport.html:md5,576d64fdba970cbb167527202528c2da",
+                "qualimapReport.html:md5,3c2002c2463c8eb4b62e197522b68186",
                 "coverage_profile_along_genes_(high).txt:md5,1898af18056981dcba09f43db34bca88",
                 "coverage_profile_along_genes_(low).txt:md5,fbe90dea7baddecaf432dd66ebc30a6f",
                 "coverage_profile_along_genes_(total).txt:md5,4232a441df31a4506171166db0e57985",
@@ -257,13 +259,13 @@
                 "test.seq.DupRate.xls:md5,44fe1525d1490024c49fc07a31ec4207",
                 "test.flagstat:md5,78f7ee12263f994e882c6d7bb420035c",
                 "test.idxstats:md5,5a0291e978e37d58575310e5e49aefd2",
-                "test.stats:md5,33fb6bb8b66dc685552fb614f7a32ce0"
+                "test.stats:md5,84279406e64ba507afb84a7fd082819e"
             ]
         ],
         "meta": {
             "nf-test": "0.9.3",
             "nextflow": "25.10.2"
         },
-        "timestamp": "2026-04-01T20:26:47.882277"
+        "timestamp": "2026-04-02T11:36:45.221934"
     }
 }
