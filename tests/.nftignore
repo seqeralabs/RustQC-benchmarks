@@ -12,8 +12,9 @@ multiqc/multiqc_data/multiqc.parquet
 multiqc/multiqc_data/multiqc_data.json
 multiqc/multiqc_data/multiqc_sources.txt
 multiqc/multiqc_data/llms-full.txt
-# SVG plots contain non-deterministic attributes (timestamps, random IDs)
+# SVG/PDF plots contain non-deterministic attributes (timestamps, random IDs, rendering differences)
 multiqc/multiqc_plots/svg/*.svg
+multiqc/multiqc_plots/pdf/*.pdf
 # Rendered images vary across environments
 **/qualimapReport.html
 **/test_duprateExpDens.png
