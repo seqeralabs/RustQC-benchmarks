@@ -20,12 +20,12 @@ runs:
   using: "composite"
   steps:
     - name: Setup Nextflow
-      uses: nf-core/setup-nextflow@6c2e22b4d901f0c42ca66c5069f8026df026d165 # v2
+      uses: nf-core/setup-nextflow@6c2e22b4d901f0c42ca66c5069f8026df026d165 # v2.1.4
       with:
         version: "${{ env.NXF_VERSION }}"
 
     - name: Set up Python
-      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
         python-version: "3.14"
 
@@ -48,7 +48,7 @@ runs:
 
     - name: Conda setup
       if: contains(inputs.profile, 'conda')
-      uses: conda-incubator/setup-miniconda@505e6394dae86d6a5c7fbb6e3fb8938e3e863830 # v3
+      uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
       with:
         auto-update-conda: true
         conda-solver: libmamba
