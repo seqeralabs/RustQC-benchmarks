@@ -32,13 +32,29 @@ nextflow_process {
             assert path(summaryFile).exists()
             assert path(xlsFile).exists()
 
+            // Round TIN floats to 10 decimal places to absorb last-digit
+            // floating-point differences across platforms (macOS vs Linux)
+            def roundFloat = { val ->
+                try { String.format("%.10f", val.toDouble()) } catch (e) { val }
+            }
+
             // Sort xls by geneID (col 0) for stable comparison
+            // Only round TIN column (col 4), leave integer columns intact
             def xlsLines = path(xlsFile).readLines()
             def header = xlsLines[0]
-            def sorted = xlsLines.drop(1).sort { it.split('\t')[0] }
+            def sorted = xlsLines.drop(1).sort { it.split('\t')[0] }.collect { line ->
+                def cols = line.split('\t')
+                [cols[0], cols[1], cols[2], cols[3], roundFloat(cols[4])].join('\t')
+            }
+
+            def summaryLines = path(summaryFile).readLines()
+            def roundedSummary = [summaryLines[0]] + summaryLines.drop(1).collect { line ->
+                def cols = line.split('\t')
+                [cols[0], roundFloat(cols[1]), roundFloat(cols[2]), roundFloat(cols[3])].join('\t')
+            }
 
             snapshot(
-                "summary": path(summaryFile).readLines(),
+                "summary": roundedSummary,
                 "tin_xls": [header] + sorted
             ).match("tin_output")
         }
