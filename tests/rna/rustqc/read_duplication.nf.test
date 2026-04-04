@@ -21,7 +21,7 @@ nextflow_process {
             process {
                 """
                 input[0] = Channel.of([
-                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
                     file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
                     file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
                 ])
@@ -59,7 +59,7 @@ nextflow_process {
             process {
                 """
                 input[0] = Channel.of([
-                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
                     file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
                     file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
                 ])
