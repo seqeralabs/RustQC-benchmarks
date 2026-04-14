@@ -21,7 +21,7 @@ jobs:
         run: echo "pr_number=$(cat linting-logs/PR_number.txt)" >> $GITHUB_OUTPUT
 
       - name: Post PR comment
-        uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 # ratchet:marocchino/sticky-pull-request-comment@v3.0.2
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # ratchet:marocchino/sticky-pull-request-comment@v3.0.4
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           number: ${{ steps.pr_number.outputs.pr_number }}
