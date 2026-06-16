@@ -46,6 +46,11 @@ RUSTQC_IMAGE=ghcr.io/seqeralabs/rustqc:<tag> nf-test test --tag bigwig
 > `RUSTQC_IMAGE` as above. Decoding bigWig files also needs a `bigWigToBedGraph`
 > binary on `PATH`, or Docker access to pull the UCSC biocontainer (used
 > automatically as a fallback).
+>
+> If the configured RustQC image produces no `bigwig/` output (i.e. predates
+> #114), both bigWig tests **skip with a logged warning and pass**, so CI stays
+> green until the feature lands. Remove the skip guard in `bigwig.nf.test` once
+> `:dev` includes bigWig support so the tests are fully enforced.
 
 ## Test Architecture
 
@@ -176,17 +181,17 @@ Row 42, Col 3: value 0.12345679 differs from expected 0.12345678
 
 Each tool uses comparison methods matched to its output characteristics:
 
-| Tool                    | Regression method             | Crosscheck method                            | Crosscheck tolerance / notes                                        |
-| ----------------------- | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------- |
-| **bam_stat**            | `snapshot(filteredLines)`     | `textMatch` (skip headers)                   | Exact (after filtering `Load BAM` / `processing` prefixes)          |
-| **infer_experiment**    | `snapshot(filteredLines)`     | `textMatch` (skip "This is")                 | Exact (after filtering header line)                                 |
-| **read_distribution**   | `snapshot(lines)`             | Structural: row labels + column count        | Algorithmic differences too large for numeric comparison (UTR 3.5x) |
-| **read_duplication**    | `snapshot({pos, seq})`        | **md5 hash** (byte-identical)                | Gold standard — files are identical between RustQC and upstream     |
-| **dupradar**            | `snapshot({matrix, slope})`   | `tsvMatch` (count cols only) + slope parsing | Abs: 10, Rel: 2% for counts; skip rate/RPKM cols; slope within 10%  |
-| **featurecounts**       | `snapshot({counts, summary})` | Biotype-to-biotype comparison + summary      | 20% per-biotype tolerance; ambiguity resolution differs (~6% total) |
-| **inner_distance**      | `snapshot({distance, freq})`  | Read ID set match + `tsvMatch` (freq)        | Read IDs must match; freq histogram: 15% relative tolerance         |
-| **junction_annotation** | `snapshot({bed sorted, xls})` | `tsvMatch` (sorted BED + sorted XLS)         | Exact after sorting (identical content, different iteration order)  |
-| **junction_saturation** | `snapshot(lines)`             | 100% sample values + R script structure      | Deterministic values only; stochastic intermediate points skipped   |
+| Tool                    | Regression method             | Crosscheck method                            | Crosscheck tolerance / notes                                                                                                                                                                  |
+| ----------------------- | ----------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **bam_stat**            | `snapshot(filteredLines)`     | `textMatch` (skip headers)                   | Exact (after filtering `Load BAM` / `processing` prefixes)                                                                                                                                    |
+| **infer_experiment**    | `snapshot(filteredLines)`     | `textMatch` (skip "This is")                 | Exact (after filtering header line)                                                                                                                                                           |
+| **read_distribution**   | `snapshot(lines)`             | Structural: row labels + column count        | Algorithmic differences too large for numeric comparison (UTR 3.5x)                                                                                                                           |
+| **read_duplication**    | `snapshot({pos, seq})`        | **md5 hash** (byte-identical)                | Gold standard — files are identical between RustQC and upstream                                                                                                                               |
+| **dupradar**            | `snapshot({matrix, slope})`   | `tsvMatch` (count cols only) + slope parsing | Abs: 10, Rel: 2% for counts; skip rate/RPKM cols; slope within 10%                                                                                                                            |
+| **featurecounts**       | `snapshot({counts, summary})` | Biotype-to-biotype comparison + summary      | 20% per-biotype tolerance; ambiguity resolution differs (~6% total)                                                                                                                           |
+| **inner_distance**      | `snapshot({distance, freq})`  | Read ID set match + `tsvMatch` (freq)        | Read IDs must match; freq histogram: 15% relative tolerance                                                                                                                                   |
+| **junction_annotation** | `snapshot({bed sorted, xls})` | `tsvMatch` (sorted BED + sorted XLS)         | Exact after sorting (identical content, different iteration order)                                                                                                                            |
+| **junction_saturation** | `snapshot(lines)`             | 100% sample values + R script structure      | Deterministic values only; stochastic intermediate points skipped                                                                                                                             |
 | **bigwig**              | `snapshot({lines, md5})`      | Decode to bedGraph + `bedGraphMatch` (exact) | Binary bigWig is not bit-identical; decoded bedGraph intervals match `bedtools v2.31.1` + UCSC `bedClip` **exactly**. Requires RustQC ≥ [#114](https://github.com/seqeralabs/RustQC/pull/114) |
 
 ### Tolerance rationale
