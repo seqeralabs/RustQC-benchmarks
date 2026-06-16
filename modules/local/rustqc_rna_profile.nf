@@ -28,7 +28,7 @@ process RUSTQC_RNA_PROFILE {
     def dup_flag       = params.skip_dup_check ? '--skip-dup-check' : ''
     def config_flag    = params.rustqc_config ? "--config ${params.rustqc_config}" : ''
     def biotype_flag   = params.biotype_attribute ? "--biotype-attribute ${params.biotype_attribute}" : ''
-    def stranded_flag  = "--stranded ${meta.strandedness ?: 'unstranded'}"
+    def stranded_flag  = meta.strandedness == 'forward' ? '--stranded forward' : meta.strandedness == 'reverse' ? '--stranded reverse' : '--stranded unstranded'
     """
     rustqc rna \\
         ${bam} \\

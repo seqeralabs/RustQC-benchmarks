@@ -11,3 +11,4 @@ bin/
 .nf-test/
 modules/nf-core/
 subworkflows/nf-core/
+snapshots/
