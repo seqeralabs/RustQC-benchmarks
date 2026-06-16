@@ -46,12 +46,15 @@ process RUSTQC_RNA {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir -p rustqc/dupradar rustqc/featurecounts rustqc/qualimap \\
+    mkdir -p rustqc/dupradar rustqc/featurecounts rustqc/qualimap rustqc/bigwig \\
         rustqc/rseqc/bam_stat rustqc/rseqc/infer_experiment \\
         rustqc/rseqc/read_duplication rustqc/rseqc/read_distribution \\
         rustqc/rseqc/junction_annotation rustqc/rseqc/junction_saturation \\
         rustqc/rseqc/inner_distance
 
+    touch rustqc/bigwig/${prefix}.bigWig
+    touch rustqc/bigwig/${prefix}.forward.bigWig
+    touch rustqc/bigwig/${prefix}.reverse.bigWig
     touch rustqc/dupradar/${prefix}_dupMatrix.txt
     touch rustqc/dupradar/${prefix}_intercept_slope.txt
     touch rustqc/featurecounts/${prefix}.featureCounts.tsv

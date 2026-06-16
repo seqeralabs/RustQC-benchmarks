@@ -30,6 +30,23 @@ nf-test test --tag bam_stat
 nf-test test tests/rna/rustqc/bam_stat.nf.test
 ```
 
+### Testing against a specific RustQC image
+
+By default the RustQC tests use `ghcr.io/seqeralabs/rustqc:dev`. To validate a
+feature that has not yet landed in `:dev`, override the container with the
+`RUSTQC_IMAGE` environment variable:
+
+```bash
+RUSTQC_IMAGE=ghcr.io/seqeralabs/rustqc:<tag> nf-test test --tag bigwig
+```
+
+> **bigWig tests require RustQC [#114](https://github.com/seqeralabs/RustQC/pull/114).**
+> Until `ghcr.io/seqeralabs/rustqc:dev` is rebuilt after that PR merges, run the
+> `--tag bigwig` tests against an image built from the PR branch using
+> `RUSTQC_IMAGE` as above. Decoding bigWig files also needs a `bigWigToBedGraph`
+> binary on `PATH`, or Docker access to pull the UCSC biocontainer (used
+> automatically as a fallback).
+
 ## Test Architecture
 
 ### Directory Structure
@@ -58,6 +75,7 @@ snapshots/
 │   ├── rseqc/                 # Upstream RSeQC reference outputs
 │   ├── dupradar/              # Upstream dupRadar reference outputs
 │   ├── featurecounts/         # Upstream featureCounts reference outputs
+│   ├── bigwig/                # bedtools + bedClip reference bedGraphs (decoded bigWig)
 │   └── rustqc/                # RustQC reference outputs (for quick manual inspection)
 ```
 
@@ -169,12 +187,13 @@ Each tool uses comparison methods matched to its output characteristics:
 | **inner_distance**      | `snapshot({distance, freq})`  | Read ID set match + `tsvMatch` (freq)        | Read IDs must match; freq histogram: 15% relative tolerance         |
 | **junction_annotation** | `snapshot({bed sorted, xls})` | `tsvMatch` (sorted BED + sorted XLS)         | Exact after sorting (identical content, different iteration order)  |
 | **junction_saturation** | `snapshot(lines)`             | 100% sample values + R script structure      | Deterministic values only; stochastic intermediate points skipped   |
+| **bigwig**              | `snapshot({lines, md5})`      | Decode to bedGraph + `bedGraphMatch` (exact) | Binary bigWig is not bit-identical; decoded bedGraph intervals match `bedtools v2.31.1` + UCSC `bedClip` **exactly**. Requires RustQC ≥ [#114](https://github.com/seqeralabs/RustQC/pull/114) |
 
 ### Tolerance rationale
 
 Tolerances were determined empirically by comparing actual RustQC outputs against upstream tools on the small test dataset. The tools fall into three categories:
 
-1. **Byte-identical** — `read_duplication`, `junction_annotation` (after sort): Use exact comparison or md5
+1. **Byte-identical** — `read_duplication`, `junction_annotation` (after sort), `bigwig` (decoded bedGraph): Use exact comparison or md5
 2. **Near-identical** — `bam_stat`, `infer_experiment`, `junction_saturation` (100% values): Use exact comparison (after filtering non-deterministic headers/paths)
 3. **Algorithmically different** — `dupradar` (multi-mapper handling), `featurecounts` (ambiguity resolution differs ~6% due to `-g gene_biotype` vs per-gene aggregation), `inner_distance` (~2% of reads classified differently), `read_distribution` (gene model resolution): Use tolerance-based or structural comparison
 
@@ -287,6 +306,15 @@ Automatically loaded by nf-test via the `libDir` config. Provides:
 
 - **`CompareUtils.extractLines(file, from, to)`**
   Extract a range of lines from a file.
+
+- **`CompareUtils.bedGraphFromBigWig(bigWigPath)`**
+  Decode a binary bigWig file to bedGraph lines. Prefers a host `bigWigToBedGraph` binary, falling back to the UCSC biocontainer via Docker. Used so bigWig tracks are compared as decoded intervals, never as (non-deterministic) binary files.
+
+- **`CompareUtils.bedGraphMatch(actualLines, expectedLines)`**
+  Exact 4-column (chrom, start, end, value) bedGraph comparison. Thin wrapper over `tsvMatch` with `tolerance: 0.0`.
+
+- **`CompareUtils.md5BedGraphLines(lines)`**
+  MD5 of bedGraph lines joined with `\n` plus a trailing newline — matches `md5sum` of the equivalent file.
 
 ### nf-test Plugins
 
