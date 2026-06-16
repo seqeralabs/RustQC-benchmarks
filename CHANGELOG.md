@@ -9,6 +9,7 @@ Initial release of seqeralabs/rustqc-benchmarks, created with the [nf-core](http
 
 ### `Added`
 
+- Add bigWig coverage-track nf-test (`tests/rna/rustqc/bigwig.nf.test`) validating RustQC `bigwig/{sample}.bigWig`, `.forward.bigWig` and `.reverse.bigWig` against committed `bedtools genomecov` + `bedClip` references (decoded to bedGraph; binary bigWig is not bit-identical to UCSC). Requires a RustQC image with bigWig support ([RustQC #114](https://github.com/seqeralabs/RustQC/pull/114)); override with `RUSTQC_IMAGE`
 - Add Qualimap rnaseq upstream module with name-sorted BAM (via `SAMTOOLS_SORT_QUALIMAP`) to the benchmarking pipeline
 - Add GTF2BED local module (`modules/local/gtf2bed/`, `bin/gtf2bed`) to auto-derive BED gene model from GTF annotation
 - Add shared `ch_bed` channel used by all BED-dependent upstream RSeQC tools (read_distribution, inner_distance, junction_annotation, junction_saturation, infer_experiment, tin)
