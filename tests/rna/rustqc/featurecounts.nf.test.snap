@@ -4,20 +4,20 @@
             {
                 "counts": [
                     "Biotype\tCount",
-                    "protein_coding\t39736",
+                    "protein_coding\t42331",
+                    "pseudogene\t124",
                     "processed_transcript\t116",
-                    "pseudogene\t104",
                     "antisense\t64",
-                    "lincRNA\t48",
+                    "lincRNA\t49",
                     "sense_overlapping\t30",
                     "misc_RNA\t4",
                     "snRNA\t3",
-                    "snoRNA\t2",
                     "miRNA\t2",
-                    "rRNA\t0",
-                    "sense_intronic\t0",
+                    "snoRNA\t2",
                     "3prime_overlapping_ncrna\t0",
-                    "polymorphic_pseudogene\t0"
+                    "polymorphic_pseudogene\t0",
+                    "rRNA\t0",
+                    "sense_intronic\t0"
                 ],
                 "summary": [
                     "Status\ttest.bam",
@@ -38,10 +38,10 @@
                 ]
             }
         ],
-        "timestamp": "2026-03-09T07:36:28.691804",
+        "timestamp": "2026-06-16T23:45:09.158216",
         "meta": {
-            "nf-test": "0.9.4",
-            "nextflow": "26.01.1"
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.3"
         }
     }
 }

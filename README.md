@@ -29,8 +29,12 @@ All upstream tools are run via standard [nf-core modules](https://nf-co.re/modul
 | junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | Row-sorted TSV + BED comparison    |
 | junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Structural check (stochastic tool) |
 | inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | TSV match, 0.1 relative tolerance  |
-| qualimap            | [Qualimap rnaseq](http://qualimap.conesalab.org/)                        | _comparison TBD_                   |
-| preseq              | [preseq lc_extrap](http://smithlabresearch.org/software/preseq/)         | _comparison TBD_                   |
+| tin                 | [RSeQC tin.py](http://rseqc.sourceforge.net/)                            | Summary TSV, 5% relative tolerance |
+| qualimap            | [Qualimap rnaseq](http://qualimap.conesalab.org/)                        | Gene-body coverage TSV, 5% rel tol |
+| preseq              | [preseq lc_extrap](http://smithlabresearch.org/software/preseq/)         | lc_extrap TSV, 5% rel tolerance    |
+| samtools flagstat   | [samtools flagstat](http://www.htslib.org/doc/samtools-flagstat.html)    | Exact text match                   |
+| samtools idxstats   | [samtools idxstats](http://www.htslib.org/doc/samtools-idxstats.html)    | Exact text match                   |
+| samtools stats      | [samtools stats](http://www.htslib.org/doc/samtools-stats.html)          | Text match, skip `#` comment lines |
 
 ## How it works
 
@@ -60,6 +64,9 @@ test-data/rna/small/          Small test BAM + annotations (~7 MB, committed)
 snapshots/rna/small/          Reference outputs (committed, plots gitignored)
   dupradar/                     Upstream dupRadar output
   featurecounts/                Upstream featureCounts output
+  preseq/                       Upstream preseq lc_extrap output
+  qualimap/                     Upstream Qualimap rnaseq output (raw_data_qualimapReport)
+  samtools/                     Upstream samtools output (test.flagstat, test.idxstats, test.stats)
   rseqc/                        Upstream RSeQC output, one subdir per tool
     bam_stat/                     bam_stat.txt
     infer_experiment/             infer_experiment.txt
@@ -68,6 +75,7 @@ snapshots/rna/small/          Reference outputs (committed, plots gitignored)
     inner_distance/               inner_distance.txt, inner_distance_freq.txt, ...
     junction_annotation/          junction.bed, junction.xls, ...
     junction_saturation/          junctionSaturation_plot.r
+    tin/                          test.summary.txt, test.tin.xls
   rustqc/                       RustQC output, same tool subdirectory structure
     dupradar/                     test_dupMatrix.txt, test_intercept_slope.txt, ...
     featurecounts/                test.featureCounts.tsv, ...
@@ -193,20 +201,26 @@ nextflow run main.nf -profile rna_test,docker \
     --rustqc_binary /path/to/rustqc
 ```
 
+> **Building RustQC from source.**
+> Since the [noodles migration](https://github.com/seqeralabs/RustQC/issues/113), RustQC uses
+> pure-Rust BAM/SAM/CRAM I/O and **no longer requires `htslib` or `cmake`** to build — the only
+> system dependencies are `g++` and `libfontconfig1-dev`. The minimum supported Rust version
+> (MSRV) is **1.89**.
+
 ### Key parameters
 
-| Parameter         | Default                         | Description                                  |
-| ----------------- | ------------------------------- | -------------------------------------------- |
-| `--run_rustqc`    | `true`                          | Run RustQC                                   |
-| `--run_upstream`  | `false`                         | Run upstream reference tools                 |
-| `--rustqc_image`  | `ghcr.io/seqeralabs/rustqc:dev` | RustQC Docker image                          |
-| `--rustqc_binary` | `null`                          | Local RustQC binary (overrides Docker)       |
-| `--bam` / `--bai` | _(from profile)_                | Input BAM and index **(required)**           |
-| `--gtf`           | _(from profile)_                | GTF annotation file **(required)**           |
-| `--sample_id`     | `test`                          | Sample identifier (used in output filenames) |
-| `--paired`        | `true`                          | Paired-end data                              |
-| `--strandedness`  | `unstranded`                    | Library strandedness                         |
-| `--outdir`        | `results`                       | Output directory                             |
+| Parameter         | Default                         | Description                                                         |
+| ----------------- | ------------------------------- | ------------------------------------------------------------------- |
+| `--run_rustqc`    | `true`                          | Run RustQC                                                          |
+| `--run_upstream`  | `false`                         | Run upstream reference tools                                        |
+| `--rustqc_image`  | `ghcr.io/seqeralabs/rustqc:dev` | RustQC Docker image (tracks latest `main`, incl. noodles migration) |
+| `--rustqc_binary` | `null`                          | Local RustQC binary (overrides Docker)                              |
+| `--bam` / `--bai` | _(from profile)_                | Input BAM and index **(required)**                                  |
+| `--gtf`           | _(from profile)_                | GTF annotation file **(required)**                                  |
+| `--sample_id`     | `test`                          | Sample identifier (used in output filenames)                        |
+| `--paired`        | `true`                          | Paired-end data                                                     |
+| `--strandedness`  | `unstranded`                    | Library strandedness                                                |
+| `--outdir`        | `results`                       | Output directory                                                    |
 
 ## Updating snapshots
 
@@ -260,6 +274,17 @@ cp .nf-test/tests/<hash>/work/<hash>/test.bam_stat.txt snapshots/rna/small/rseqc
 cp .nf-test/tests/<hash>/work/<hash>/test.infer_experiment.txt snapshots/rna/small/rseqc/infer_experiment/
 cp .nf-test/tests/<hash>/work/<hash>/test.pos.DupRate.xls snapshots/rna/small/rseqc/read_duplication/pos.DupRate.xls
 # ... etc for each tool
+
+# samtools -- exact-match reference outputs (flagstat, idxstats, stats)
+cp .nf-test/tests/<hash>/work/<hash>/test.flagstat snapshots/rna/small/samtools/
+cp .nf-test/tests/<hash>/work/<hash>/test.idxstats snapshots/rna/small/samtools/
+cp .nf-test/tests/<hash>/work/<hash>/test.stats    snapshots/rna/small/samtools/
+
+# preseq
+cp .nf-test/tests/<hash>/work/<hash>/test.lc_extrap.txt snapshots/rna/small/preseq/
+
+# qualimap -- gene-body coverage profiles
+cp .nf-test/tests/<hash>/work/<hash>/test/raw_data_qualimapReport/*.txt snapshots/rna/small/qualimap/raw_data_qualimapReport/
 
 # Re-run rustqc tests to check if comparisons still hold
 nf-test test --tag rustqc
