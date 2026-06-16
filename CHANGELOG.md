@@ -24,6 +24,8 @@ Initial release of seqeralabs/rustqc-benchmarks, created with the [nf-core](http
 
 ### `Fixed`
 
+- Pass string `--stranded {unstranded,forward,reverse}` to `rustqc rna` instead of the deprecated numeric `--stranded 2/1/0`, matching the current RustQC CLI (both `RUSTQC_RNA` and `RUSTQC_RNA_PROFILE`)
+
 ### `Dependencies`
 
 ### `Deprecated`
