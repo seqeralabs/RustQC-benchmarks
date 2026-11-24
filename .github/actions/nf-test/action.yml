@@ -19,18 +19,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-    # GitHub's ubuntu-latest (Ubuntu 26.04) defaults to Java 25, which nf-test 0.9.x and
-    # Nextflow 25.04 can't run ("Unsupported class file major version 69"). Pin an LTS.
-    - name: Set up Java
-      uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-      with:
-        distribution: temurin
-        java-version: "21"
-
     - name: Setup Nextflow
-      uses: nf-core/setup-nextflow@6c2e22b4d901f0c42ca66c5069f8026df026d165 # v2.1.4
+      uses: nf-core/setup-nextflow@c66f1bfa2dc817ae23f4b34eaa26fa5f1453ca71 # v3.1.0
       with:
         version: "${{ env.NXF_VERSION }}"
+        # ubuntu-latest (Ubuntu 26.04) defaults to Java 25, which nf-test 0.9.x and
+        # Nextflow 25.04 can't run; setup-nextflow v3 installs the Java we ask for.
+        java-version: "21"
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -38,7 +33,7 @@ runs:
         python-version: "3.14"
 
     - name: Install nf-test
-      uses: nf-core/setup-nf-test@f2db585128ae681918440f6c074dededeceadce1 # v1
+      uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2.1.0
       with:
         version: "${{ env.NFT_VER }}"
         install-pdiff: true
