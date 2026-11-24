@@ -72,13 +72,14 @@ nextflow_process {
 
             def upstreamFile = "${projectDir}/snapshots/rna/small/samtools/test.stats"
 
-            // Compare data lines only — comment headers differ between
-            // RustQC and samtools (version strings, command lines).
-            // CHK checksums should match if the data is identical.
+            // Measured: all 10,562 data lines (CHK checksums, SN summary and every
+            // histogram) are identical to samtools stats. Only the '#' comment lines
+            // differ (version string, command line and section help text), so those
+            // are skipped and everything else must match exactly.
             CompareUtils.textMatch(
                 path(actualFile).readLines(),
                 path(upstreamFile).readLines(),
-                ['#']  // skip comment lines
+                ['#']
             )
         }
     }

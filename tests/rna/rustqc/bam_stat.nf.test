@@ -73,13 +73,11 @@ nextflow_process {
             def actualFile = "${rustqcDir}/rseqc/bam_stat/test.bam_stat.txt"
             assert path(actualFile).exists() : "bam_stat.txt not found in: ${rustqcDir}"
 
-            // Exact text match against upstream reference (skip non-deterministic headers)
-            // Benchmark report confirms: identical on small dataset
-            CompareUtils.textMatch(
-                path(actualFile).readLines(),
-                path("${projectDir}/snapshots/rna/small/rseqc/bam_stat/bam_stat.txt").readLines(),
-                ['Load BAM', 'processing']
-            )
+            // Measured: byte-identical to RSeQC bam_stat.py. Neither file contains the
+            // "Load BAM"/"processing" progress lines, so nothing needs filtering.
+            def upstreamFile = "${projectDir}/snapshots/rna/small/rseqc/bam_stat/bam_stat.txt"
+            assert path(actualFile).md5 == path(upstreamFile).md5 : \
+                "bam_stat.txt differs from upstream RSeQC (${upstreamFile})"
         }
     }
 }

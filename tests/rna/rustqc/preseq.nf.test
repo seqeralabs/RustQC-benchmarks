@@ -71,18 +71,15 @@ nextflow_process {
 
             def upstreamFile = "${projectDir}/snapshots/rna/small/preseq/test.lc_extrap.txt"
 
-            // preseq lc_extrap: TSV with TOTAL_READS, EXPECTED_DISTINCT,
-            // LOWER_0.95CI, UPPER_0.95CI. Bootstrapping is stochastic so
-            // use relative tolerance for CI columns, though both tools
-            // produce identical results on this small dataset.
-            CompareUtils.tsvMatch(
-                path(actualFile).readLines(),
-                path(upstreamFile).readLines(),
-                [
-                    relTolerance: 0.05,  // 5% relative tolerance for CI bounds
-                    tolerance:    1.0,   // absolute tolerance for small values
-                ]
-            )
+            // preseq lc_extrap bootstraps its estimates. RustQC calls the same C++
+            // std::mt19937 + std::binomial_distribution as upstream preseq, with the
+            // same seed (408, via ext.args in conf/modules.config), so on the same
+            // platform the output is byte-identical. Measured identical on Linux.
+            // Platform note: this check is only valid on Linux, which is all CI runs.
+            // On macOS, libc++ draws a different binomial stream and the values
+            // differ by up to ~18%.
+            assert path(actualFile).md5 == path(upstreamFile).md5 : \
+                "lc_extrap.txt differs from upstream preseq (${upstreamFile})"
         }
     }
 }

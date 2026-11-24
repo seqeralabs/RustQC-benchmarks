@@ -69,14 +69,10 @@ nextflow_process {
             def actualFile = "${rustqcDir}/samtools/test.flagstat"
             assert path(actualFile).exists() : "flagstat not found in: ${rustqcDir}"
 
+            // Measured: byte-identical to samtools flagstat.
             def upstreamFile = "${projectDir}/snapshots/rna/small/samtools/test.flagstat"
-
-            // flagstat output should be identical between RustQC and samtools
-            CompareUtils.textMatch(
-                path(actualFile).readLines(),
-                path(upstreamFile).readLines(),
-                []  // no prefixes to skip
-            )
+            assert path(actualFile).md5 == path(upstreamFile).md5 : \
+                "flagstat differs from upstream samtools (${upstreamFile})"
         }
     }
 }
