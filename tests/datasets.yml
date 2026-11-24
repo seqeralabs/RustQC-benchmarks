@@ -1,0 +1,82 @@
+# Test dataset manifest: the single list of inputs the dataset-driven nf-tests run on.
+#
+# Read by tests/lib/datasets/Datasets.groovy. One entry per dataset; the matrix test
+# (tests/rna/matrix/matrix.nf.test) and the release-regression test
+# (tests/rna/regression/release.nf.test) each generate one test per entry.
+#
+# Inputs
+#   Each input has a `url` (preferred: nf-core/test-datasets at a pinned commit SHA, so the
+#   bytes can never change under a test) and/or a `local` path relative to the repository root.
+#   Set RUSTQC_TESTDATA=local to use the `local` copies instead of downloading (offline runs,
+#   or if staging remote files ever breaks). Inputs with only a `local` path are not hosted in
+#   nf-core yet. `md5` records the expected checksum (verified when the entry was added).
+#
+# Per-dataset keys
+#   class       content (has its own upstream references) | equivalence | option (later phases)
+#   sample      RustQC --sample-name, i.e. the output file prefix (default: the dataset id)
+#   meta        the [meta] map passed to RUSTQC_RNA: single_end, strandedness
+#   rustqc      RUSTQC_RNA params: skip_dup_check, biotype_attribute, rustqc_config
+#   references  dir:      upstream reference outputs, relative to the repository root
+#               bam_name: basename of the BAM the references were generated from. Outputs that
+#                         echo the BAM name (featureCounts headers, TIN, qualimap) are
+#                         normalised to it before comparing.
+#   expect      per-tool expectation, default `match`:
+#                 match           compare against the upstream reference
+#                 regression      no upstream equivalent; snapshot/release regression only
+#                 absent          RustQC must not write this tool's outputs (e.g. inner_distance on SE)
+#                 upstream_error  the upstream tool fails on this input; no reference to compare
+#   tags        extra nf-test tags (axes of the matrix: layout, strand, annotation flavour, ...)
+
+sources:
+  # nf-core/test-datasets `modules` branch, pinned by commit SHA (branch head on 2026-11-24).
+  nfcore_modules: https://raw.githubusercontent.com/nf-core/test-datasets/65d3096343daeb3ae88795314c481d15b89284c5/data
+
+# RustQC release-regression check (tests/rna/regression/release.nf.test): the current RustQC
+# (params.rustqc_image) and the baseline release below run on every dataset and their outputs
+# are compared. Bump `baseline_image` after each RustQC release; the image tags are listed by
+#   gh api /orgs/seqeralabs/packages/container/rustqc/versions
+# Override for one run with RUSTQC_BASELINE_IMAGE=<image>.
+#
+# Outputs are compared exactly except for plots, CITATIONS.md and version/command-line
+# header lines (tests/lib/checks/ReleaseRegression.groovy). Intentional
+# output changes since the baseline go in `accepted_differences` (glob relative to rustqc/,
+# `{sample}` allowed; optional `datasets: [id, ...]` to limit an entry). They are reported
+# but do not fail. Empty this list when baseline_image is bumped.
+release_regression:
+  baseline_image: ghcr.io/seqeralabs/rustqc:v0.2.1
+  accepted_differences: []
+
+datasets:
+  - id: hs_chr6_pe_rev
+    class: content
+    description: >-
+      Human GRCh37 (Ensembl names) chr6, paired-end, reverse-stranded RNA-seq. SRR5665260,
+      STAR 2.6.1d, Picard MarkDuplicates (6,097 duplicates). 25 @SQ lines but reads on `6`
+      only; 3,266 secondary, no unmapped/supplementary/QC-fail reads. Same bytes as the
+      original harness copy in test-data/rna/small/.
+    sample: test
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.chr6.bam"
+        local: test-data/rna/small/test.bam
+        md5: 1c372eadaf8efcb62763c09b40c52bc5
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.chr6.bam.bai"
+        local: test-data/rna/small/test.bam.bai
+        md5: 48bcd3c7c9e515b26e9f17ca6892f705
+      gtf:
+        # Ensembl GRCh37 chr6 annotation. Not in nf-core/test-datasets yet: keep the in-repo
+        # copy until it is hosted there, then add a pinned `url`.
+        local: test-data/rna/small/chr6.gtf.gz
+        md5: 2b78ac36eac193adaa0bb1f3d8cf8b67
+    meta:
+      single_end: false
+      strandedness: reverse
+    rustqc:
+      # The BAM is duplicate-marked, so the duplicate gate runs and must pass.
+      skip_dup_check: false
+    references:
+      dir: snapshots/rna/small
+      bam_name: test.bam
+    expect: {}
+    tags: [pe, reverse, ensembl, grch37, single_contig, picard_dups]
