@@ -4,8 +4,12 @@
  * Provides methods for comparing RustQC outputs against upstream tool
  * reference snapshots with configurable tolerance and filtering.
  *
- * Auto-loaded by nf-test via the tests/lib/ classpath convention.
+ * Lives in the `checks` package so the per-tool checks in this directory can use it
+ * (a packaged Groovy class cannot reference a class in the default package).
+ * tests/lib/CompareUtils.groovy re-exports it under its old, unqualified name.
  */
+package checks
+
 class CompareUtils {
 
     /**
