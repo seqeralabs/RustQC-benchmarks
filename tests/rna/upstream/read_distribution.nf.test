@@ -9,17 +9,43 @@ nextflow_process {
     tag "read_distribution"
     tag "small"
 
+    // read_distribution is the only RSeQC tool that uses the BED CDS columns
+    // (thickStart/thickEnd). Derive the BED from the GTF with GTF2BED, as the
+    // pipeline does when generating snapshots/rna/small/rseqc/read_distribution/.
+    // The committed test-data chr6.bed has the same exons but different CDS bounds.
+    setup {
+        run("GUNZIP") {
+            script "../../../modules/nf-core/gunzip/main.nf"
+            process {
+                """
+                input[0] = Channel.of([
+                    [:],
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+        run("GTF2BED") {
+            script "../../../modules/local/gtf2bed/main.nf"
+            process {
+                """
+                input[0] = GUNZIP.out.gunzip.map { _meta, gtf -> gtf }
+                """
+            }
+        }
+    }
+
     test("small dataset - upstream read_distribution") {
 
         when {
             process {
                 """
                 input[0] = Channel.of([
-                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
                     file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
                     file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                input[1] = GTF2BED.out.bed
                 """
             }
         }
