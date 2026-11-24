@@ -17,6 +17,8 @@ lint:
     - docs/README.md
     # Actions pinned to commit SHAs; PR comments go through pr-comment.yml
     - .github/workflows/linting.yml
+    # Only triggers on completed runs and validates the artifact's comment header
+    - .github/workflows/pr-comment.yml
   nextflow_config:
     - manifest.name
     - manifest.homePage
@@ -50,10 +52,13 @@ lint:
     - .github/workflows/linting_comment.yml
     # Documentation lives in README.md
     - .github/CONTRIBUTING.md
+    - docs/CONTRIBUTING.md
     - docs/README.md
     - docs/output.md
     - docs/usage.md
   included_configs: false
+  # No module-pinned container profiles (conf/containers_*.config) in this harness
+  container_configs: false
   # Binary BAM whose bytes happen to contain '{{' / '{%'
   template_strings:
     - test-data/rna/small/test.name_sorted.bam
