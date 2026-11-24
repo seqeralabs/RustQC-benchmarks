@@ -37,4 +37,5 @@ test-data/dna/
 data/
 testing/
 testing*
+.lineage/
 .nf-test.log
