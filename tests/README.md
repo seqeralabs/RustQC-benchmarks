@@ -103,6 +103,8 @@ Tests are tagged for selective execution:
 | `small`                      | Tests using the small dataset              | All           |
 | `bam_stat`, `dupradar`, etc. | Tests for a specific tool                  | 2-3 tests     |
 | `pipeline`                   | Pipeline smoke tests                       | 3 tests       |
+| `split_bam`                  | split_bam (needs RustQC PR #191)           | 5 tests       |
+| `featurecounts_mo`           | featureCounts `-M` / `-O` (needs PR #191)  | 12 tests      |
 
 Tags can be combined: `nf-test test --tag regression --tag bam_stat` runs only the bam_stat regression test.
 
@@ -169,6 +171,28 @@ Each tool uses comparison methods matched to its output characteristics:
 | **inner_distance**      | `snapshot({distance, freq})`  | Read ID set match + `tsvMatch` (freq)        | Read IDs must match; freq histogram: 15% relative tolerance         |
 | **junction_annotation** | `snapshot({bed sorted, xls})` | `tsvMatch` (sorted BED + sorted XLS)         | Exact after sorting (identical content, different iteration order)  |
 | **junction_saturation** | `snapshot(lines)`             | 100% sample values + R script structure      | Deterministic values only; stochastic intermediate points skipped   |
+| **split_bam**           | `snapshot(lines)`             | **md5 hash** + `textMatch`                   | Byte-identical to `split_bam.py` stdout (rRNA and synthetic BED12)  |
+| **featurecounts_mo**    | `snapshot({counts, summary})` | Exact `tsvMatch` + `textMatch` + biotype map | Exact gene/biotype counts and summaries for `-M`, `-O`, `-M -O`     |
+
+### Tests that need flags or extra inputs
+
+`tests/rna/rustqc/split_bam.nf.test` and `featurecounts_mo.nf.test` load
+`tests/rna/rustqc/rustqc_extra_args.config`, which appends `params.rustqc_extra_args` (set in each
+test's `params` block) to the `RUSTQC_RNA` `ext.args` from `conf/modules.config`. The split_bam
+BED is staged next to the index in the input tuple's `bai` slot, so `--split-bam-bed` can name it
+by file name.
+
+split_bam and featureCounts `-M` / `-O` come from RustQC PR #191. Until it is merged and
+`ghcr.io/seqeralabs/rustqc:dev` is rebuilt, the RustQC tests for them fail on the default image.
+Run them against an image built from the PR with:
+
+```bash
+RUSTQC_IMAGE=<registry>/rustqc:<tag> nf-test test --tag split_bam
+RUSTQC_IMAGE=<registry>/rustqc:<tag> nf-test test --tag featurecounts_mo
+```
+
+The upstream references and how they were made are described in
+`snapshots/rna/small/rseqc/split_bam/README.md` and `snapshots/rna/small/featurecounts_mo/README.md`.
 
 ### Tolerance rationale
 
