@@ -1,0 +1,78 @@
+import checks.ReleaseRegression
+import datasets.Datasets
+
+// Release regression: the current RustQC against the last released RustQC, on the same input.
+//
+// For every `class: content` dataset in tests/datasets.yml, RUSTQC_RNA runs twice with
+// identical inputs and arguments (tests/workflows/rustqc_release_regression.nf):
+//   CURRENT   params.rustqc_image (ghcr.io/seqeralabs/rustqc:dev unless overridden)
+//   BASELINE  release_regression.baseline_image from tests/datasets.yml
+// and the two output trees are compared file by file (checks.ReleaseRegression): exact for
+// every deterministic text output, with the documented exclusions (plots, CITATIONS.md,
+// version and command-line header lines).
+//
+// This checks RustQC where no upstream reference exists (an upstream tool that fails on an
+// input, or a tool with no upstream equivalent), so nothing here is snapshotted: the
+// baseline is the reference.
+//
+// Containers are needed for the two images (docker/singularity profiles). Without containers,
+// point the two runs at two local binaries instead:
+//   RUSTQC_BASELINE_BIN=/path/to/old/rustqc RUSTQC_CURRENT_BIN=/path/to/new/rustqc \
+//     nf-test test --profile test --tag release_regression
+//
+// Not part of `--tag regression` (which is the snapshot suite and needs no image pull).
+nextflow_workflow {
+
+    name "RustQC release regression"
+    script "../../workflows/rustqc_release_regression.nf"
+    workflow "RUSTQC_RELEASE_REGRESSION"
+    config "./release.config"
+
+    tag "release_regression"
+    tag "rustqc"
+    tag "rna"
+
+    Datasets.ofClass('content').each { ds ->
+
+        test("${ds.id} - current vs ${ReleaseRegression.baselineLabel()}") {
+
+            ds.allTags().each { tag it }
+
+            when {
+                params {
+                    skip_dup_check        = ds.rustqc.skip_dup_check ?: false
+                    biotype_attribute     = ds.rustqc.biotype_attribute
+                    rustqc_config         = ds.rustqc.rustqc_config
+                    rustqc_baseline_image = Datasets.baselineImage()
+                    rustqc_baseline_bin   = ReleaseRegression.binDir('RUSTQC_BASELINE_BIN')
+                    rustqc_current_bin    = ReleaseRegression.binDir('RUSTQC_CURRENT_BIN')
+                }
+                workflow {
+                    """
+                    input[0] = Channel.of([
+                        ${ds.metaLiteral()},
+                        file('${ds.inputs.bam}', checkIfExists: true),
+                        file('${ds.inputs.bai}', checkIfExists: true)
+                    ])
+                    input[1] = file('${ds.inputs.gtf}', checkIfExists: true)
+                    """
+                }
+            }
+
+            then {
+                assert workflow.success
+
+                def current  = workflow.out.current[0][1]
+                def baseline = workflow.out.baseline[0][1]
+
+                // Guard against comparing a binary with itself: the baseline run must report
+                // the release version (unless two local binaries were given explicitly).
+                ReleaseRegression.assertBaselineVersion(
+                    workflow.out.baseline_versions[0], workflow.out.current_versions[0]
+                )
+
+                ReleaseRegression.compare(ds, current, baseline)
+            }
+        }
+    }
+}
