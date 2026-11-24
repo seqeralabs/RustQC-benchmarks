@@ -1,0 +1,106 @@
+{
+    "hs_chr6_pe_rev": {
+        "content": [
+            {
+                "bam_stat": [
+                    "#==================================================",
+                    "#All numbers are READ count",
+                    "#==================================================",
+                    "Total records:                          52839",
+                    "QC failed:                              0",
+                    "Optical/PCR duplicate:                  6097",
+                    "Non primary hits                        3266",
+                    "Unmapped reads:                         0",
+                    "mapq < mapq_cut (non-unique):           1742",
+                    "mapq >= mapq_cut (unique):              41734",
+                    "Read-1:                                 20871",
+                    "Read-2:                                 20863",
+                    "Reads map to '+':                       20869",
+                    "Reads map to '-':                       20865",
+                    "Non-splice reads:                       22214",
+                    "Splice reads:                           19520",
+                    "Reads mapped in proper pairs:           41722",
+                    "Proper-paired reads map to different chrom:0"
+                ],
+                "infer_experiment": [
+                    "This is PairEnd Data",
+                    "Fraction of reads failed to determine: 0.0775",
+                    "Fraction of reads explained by \"1++,1--,2+-,2-+\": 0.0051",
+                    "Fraction of reads explained by \"1+-,1-+,2++,2--\": 0.9174"
+                ],
+                "flagstat": [
+                    "52839 + 0 in total (QC-passed reads + QC-failed reads)",
+                    "49573 + 0 primary",
+                    "3266 + 0 secondary",
+                    "0 + 0 supplementary",
+                    "6097 + 0 duplicates",
+                    "6097 + 0 primary duplicates",
+                    "52839 + 0 mapped (100.00% : N/A)",
+                    "49573 + 0 primary mapped (100.00% : N/A)",
+                    "49573 + 0 paired in sequencing",
+                    "24797 + 0 read1",
+                    "24776 + 0 read2",
+                    "49546 + 0 properly paired (99.95% : N/A)",
+                    "49546 + 0 with itself and mate mapped",
+                    "27 + 0 singletons (0.05% : N/A)",
+                    "0 + 0 with mate mapped to a different chr",
+                    "0 + 0 with mate mapped to a different chr (mapQ>=5)"
+                ],
+                "idxstats": [
+                    "1\t249250621\t0\t0",
+                    "2\t243199373\t0\t0",
+                    "3\t198022430\t0\t0",
+                    "4\t191154276\t0\t0",
+                    "5\t180915260\t0\t0",
+                    "6\t171115067\t52839\t0",
+                    "7\t159138663\t0\t0",
+                    "8\t146364022\t0\t0",
+                    "9\t141213431\t0\t0",
+                    "10\t135534747\t0\t0",
+                    "11\t135006516\t0\t0",
+                    "12\t133851895\t0\t0",
+                    "13\t115169878\t0\t0",
+                    "14\t107349540\t0\t0",
+                    "15\t102531392\t0\t0",
+                    "16\t90354753\t0\t0",
+                    "17\t81195210\t0\t0",
+                    "18\t78077248\t0\t0",
+                    "19\t59128983\t0\t0",
+                    "20\t63025520\t0\t0",
+                    "21\t48129895\t0\t0",
+                    "22\t51304566\t0\t0",
+                    "X\t155270560\t0\t0",
+                    "Y\t59373566\t0\t0",
+                    "MT\t16569\t0\t0",
+                    "*\t0\t0\t0"
+                ],
+                "featurecounts_geneid": {
+                    "counts_md5": "2759e9b6f069cc10219a1b447e468447",
+                    "genes": 2905,
+                    "summary": [
+                        "Status\ttest.bam",
+                        "Assigned\t42173",
+                        "Unassigned_Unmapped\t0",
+                        "Unassigned_Read_Type\t0",
+                        "Unassigned_Singleton\t0",
+                        "Unassigned_MappingQuality\t0",
+                        "Unassigned_Chimera\t0",
+                        "Unassigned_FragmentLength\t0",
+                        "Unassigned_Duplicate\t0",
+                        "Unassigned_MultiMapping\t5496",
+                        "Unassigned_Secondary\t0",
+                        "Unassigned_NonSplit\t0",
+                        "Unassigned_NoFeatures\t2645",
+                        "Unassigned_Overlapping_Length\t0",
+                        "Unassigned_Ambiguity\t2525"
+                    ]
+                }
+            }
+        ],
+        "timestamp": "2026-11-24T15:15:41.6767923",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.10.7"
+        }
+    }
+}

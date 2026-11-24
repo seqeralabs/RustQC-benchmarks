@@ -1,0 +1,56 @@
+import checks.Checks
+import datasets.Datasets
+
+// Dataset matrix: one test per `class: content` dataset in tests/datasets.yml.
+//
+// RustQC runs once per dataset and every converted tool is checked on that single run:
+//   - Checks.crosscheck      RustQC vs the dataset's upstream references (tests/lib/checks/)
+//   - Checks.regressionView  small per-tool views, snapshotted in matrix.nf.test.snap
+//
+// Tests are generated in a Groovy loop over the manifest (verified with nf-test 0.9.5; list them
+// with `nf-test test --dry-run`, since `nf-test list` does not load tests/lib; see
+// tests/README.md). Select one dataset with `--tag ds_<id>`, or an axis with e.g. `--tag pe`.
+nextflow_process {
+
+    name "RustQC dataset matrix"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "matrix"
+    tag "rustqc"
+    tag "rna"
+
+    Datasets.ofClass('content').each { ds ->
+
+        test(ds.id) {
+
+            ds.allTags().each { tag it }
+
+            when {
+                params {
+                    skip_dup_check    = ds.rustqc.skip_dup_check ?: false
+                    biotype_attribute = ds.rustqc.biotype_attribute
+                    rustqc_config     = ds.rustqc.rustqc_config
+                }
+                process {
+                    """
+                    input[0] = Channel.of([
+                        ${ds.metaLiteral()},
+                        file('${ds.inputs.bam}', checkIfExists: true),
+                        file('${ds.inputs.bai}', checkIfExists: true)
+                    ])
+                    input[1] = file('${ds.inputs.gtf}', checkIfExists: true)
+                    """
+                }
+            }
+
+            then {
+                assert process.success
+
+                def outDir = process.out.results[0][1]
+                Checks.crosscheck(ds, outDir)
+                assert snapshot(Checks.regressionView(ds, outDir)).match()
+            }
+        }
+    }
+}
