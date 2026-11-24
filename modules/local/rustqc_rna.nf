@@ -39,7 +39,7 @@ process RUSTQC_RNA {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        rustqc: \$(rustqc --version | sed 's/rustqc //')
+        rustqc: \$(rustqc -V | sed 's/rustqc //')
     END_VERSIONS
     """
 
