@@ -1,0 +1,86 @@
+nextflow_process {
+
+    name "Test upstream RSeQC split_bam"
+    script "../../../modules/nf-core/rseqc/splitbam/main.nf"
+    process "RSEQC_SPLITBAM"
+
+    tag "upstream"
+    tag "rna"
+    tag "split_bam"
+    tag "small"
+
+    // split_bam.py prints its record counts to stdout; the nf-core module is
+    // patched (rseqc-splitbam.diff) to capture them in <prefix>.split_bam.txt.
+    // The output of each test is committed as the crosscheck reference in
+    // snapshots/rna/small/rseqc/split_bam/<bed name>/test.split_bam.txt.
+
+    // RSeQC hg19_rRNA.bed, chromosome 6 only, "chr" prefix stripped to match
+    // the Ensembl GRCh37 names in test.bam. No rRNA locus is covered by the
+    // test reads, so every record is "ex".
+    test("small dataset - upstream split_bam - GRCh37 rRNA chr6") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'rRNA_GRCh37_chr6' ],
+                    file("${projectDir}/test-data/rna/small/rRNA_GRCh37_chr6.bed", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def txt = path(process.out.txt[0][1])
+            assert path(process.out.in_bam[0][1]).exists()
+            assert path(process.out.ex_bam[0][1]).exists()
+            assert path(process.out.junk_bam[0][1]).exists()
+
+            snapshot(
+                txt.readLines()
+            ).match("split_bam_rrna_output")
+        }
+    }
+
+    // Synthetic BED12 with multi-block transcripts, a single-block region
+    // overlapping one of them, a gapped multi-block region and a contig that
+    // is absent from the BAM. Gives a non-trivial number of "in" records.
+    test("small dataset - upstream split_bam - synthetic BED12") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'split_bam_synthetic' ],
+                    file("${projectDir}/test-data/rna/small/split_bam_synthetic.bed", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def txt = path(process.out.txt[0][1])
+            assert path(process.out.in_bam[0][1]).exists()
+            assert path(process.out.ex_bam[0][1]).exists()
+            assert path(process.out.junk_bam[0][1]).exists()
+
+            snapshot(
+                txt.readLines()
+            ).match("split_bam_synthetic_output")
+        }
+    }
+}

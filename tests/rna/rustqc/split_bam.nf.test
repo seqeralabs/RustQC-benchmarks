@@ -1,0 +1,143 @@
+nextflow_process {
+
+    name "Test RUSTQC split_bam output"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+    config "./rustqc_extra_args.config"
+
+    tag "rustqc"
+    tag "rna"
+    tag "split_bam"
+    tag "small"
+
+    // split_bam only runs when a BED file is given (--split-bam-bed), and needs
+    // RustQC PR #191 (see rustqc_extra_args.config for RUSTQC_IMAGE).
+    //
+    // RUSTQC_RNA has no BED input, so the BED is staged alongside the index in
+    // the tuple's `bai` slot (a `path` input accepts a list of files; the module
+    // script does not use `bai` by name). --split-bam-bed then refers to the
+    // staged file name, which works with docker, singularity and conda alike.
+
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("split_bam - regression") {
+
+        tag "regression"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--split-bam-bed split_bam_synthetic.bed --split-bam-write-bams'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    [
+                        file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true),
+                        file("${projectDir}/test-data/rna/small/split_bam_synthetic.bed", checkIfExists: true)
+                    ]
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def splitDir = "${process.out.results[0][1]}/rseqc/split_bam"
+            def txtFile  = "${splitDir}/test.split_bam.txt"
+            assert path(txtFile).exists() : "split_bam.txt not found in: ${splitDir}"
+
+            // --split-bam-write-bams: the three BAMs exist and are non-trivial.
+            // (Record-level identity with split_bam.py's BAMs is not checked here:
+            // BGZF bytes differ between writers, and nf-test has no BAM reader
+            // loaded. See snapshots/rna/small/rseqc/split_bam/README.md.)
+            ['in', 'ex', 'junk'].each { cls ->
+                CompareUtils.fileMinSize(path("${splitDir}/test.${cls}.bam"), 100)
+            }
+
+            snapshot(
+                path(txtFile).readLines()
+            ).match("split_bam_regression")
+        }
+    }
+
+    // ── Crosscheck: byte-identical to split_bam.py (synthetic BED12) ─
+    test("split_bam - crosscheck vs upstream - synthetic BED12") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--split-bam-bed split_bam_synthetic.bed'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    [
+                        file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true),
+                        file("${projectDir}/test-data/rna/small/split_bam_synthetic.bed", checkIfExists: true)
+                    ]
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def txtFile = "${process.out.results[0][1]}/rseqc/split_bam/test.split_bam.txt"
+            def refFile = "${projectDir}/snapshots/rna/small/rseqc/split_bam/split_bam_synthetic/test.split_bam.txt"
+            assert path(txtFile).exists() : "split_bam.txt not found"
+
+            // Readable line diff first, then the byte-exact check
+            CompareUtils.textMatch(path(txtFile).readLines(), path(refFile).readLines())
+            assert path(txtFile).md5 == path(refFile).md5 : \
+                "test.split_bam.txt is not byte-identical to split_bam.py output"
+        }
+    }
+
+    // ── Crosscheck: byte-identical to split_bam.py (GRCh37 rRNA BED) ─
+    test("split_bam - crosscheck vs upstream - GRCh37 rRNA chr6") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--split-bam-bed rRNA_GRCh37_chr6.bed'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    [
+                        file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true),
+                        file("${projectDir}/test-data/rna/small/rRNA_GRCh37_chr6.bed", checkIfExists: true)
+                    ]
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def txtFile = "${process.out.results[0][1]}/rseqc/split_bam/test.split_bam.txt"
+            def refFile = "${projectDir}/snapshots/rna/small/rseqc/split_bam/rRNA_GRCh37_chr6/test.split_bam.txt"
+            assert path(txtFile).exists() : "split_bam.txt not found"
+
+            CompareUtils.textMatch(path(txtFile).readLines(), path(refFile).readLines())
+            assert path(txtFile).md5 == path(refFile).md5 : \
+                "test.split_bam.txt is not byte-identical to split_bam.py output"
+        }
+    }
+}
