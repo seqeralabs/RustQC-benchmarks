@@ -20,9 +20,12 @@ runs:
   using: "composite"
   steps:
     - name: Setup Nextflow
-      uses: nf-core/setup-nextflow@6c2e22b4d901f0c42ca66c5069f8026df026d165 # v2.1.4
+      uses: nf-core/setup-nextflow@c66f1bfa2dc817ae23f4b34eaa26fa5f1453ca71 # v3.1.0
       with:
         version: "${{ env.NXF_VERSION }}"
+        # ubuntu-latest (Ubuntu 26.04) defaults to Java 25, which nf-test 0.9.x and
+        # Nextflow 25.04 can't run; setup-nextflow v3 installs the Java we ask for.
+        java-version: "21"
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -30,14 +33,14 @@ runs:
         python-version: "3.14"
 
     - name: Install nf-test
-      uses: nf-core/setup-nf-test@f2db585128ae681918440f6c074dededeceadce1 # v1
+      uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2.1.0
       with:
         version: "${{ env.NFT_VER }}"
         install-pdiff: true
 
     - name: Setup apptainer
       if: contains(inputs.profile, 'singularity')
-      uses: eWaterCycle/setup-apptainer@3f706d898c9db585b1d741b4692e66755f3a1b40 # main
+      uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087 # v3
 
     - name: Set up Singularity
       if: contains(inputs.profile, 'singularity')
@@ -65,7 +68,7 @@ runs:
           --profile=+${{ inputs.profile }} \
           $(if [ -n "${{ inputs.tags }}" ]; then echo "--tag ${{ inputs.tags }}"; fi) \
           --ci \
-          --changed-since HEAD^ \
+          $(if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then echo "--changed-since HEAD^"; fi) \
           --verbose \
           --tap=test.tap \
           --shard ${{ inputs.shard }}/${{ inputs.total_shards }}

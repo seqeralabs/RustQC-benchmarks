@@ -19,3 +19,8 @@ multiqc/multiqc_plots/pdf/*.pdf
 **/qualimapReport.html
 **/test_duprateExpDens.png
 **/test_duprateExpDens.svg
+# Embed the RustQC version (featureCounts.tsv header) or version + git commit (CITATIONS.md),
+# so a whole-file md5 breaks on every RustQC release/build. Names are still snapshotted, and
+# tests/default.nf.test snapshots featureCounts.tsv's content without its header line.
+rustqc/featurecounts/test.featureCounts.tsv
+rustqc/CITATIONS.md

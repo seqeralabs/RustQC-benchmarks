@@ -20,21 +20,30 @@ outputs:
 runs:
   using: "composite"
   steps:
+    # GitHub's ubuntu-latest (Ubuntu 26.04) defaults to Java 25, which nf-test 0.9.x and
+    # Nextflow 25.04 can't run ("Unsupported class file major version 69"). Pin an LTS.
+    - name: Set up Java
+      uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+      with:
+        distribution: temurin
+        java-version: "21"
+
     - name: Install nf-test
-      uses: nf-core/setup-nf-test@f2db585128ae681918440f6c074dededeceadce1 # v1
+      uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2.1.0
       with:
         version: ${{ env.NFT_VER }}
     - name: Get number of shards
       id: shards
       shell: bash
       run: |
-        # Run nf-test with dynamic parameter
+        # Run nf-test with dynamic parameter.
+        # Manual (workflow_dispatch) runs test everything; PRs only test what changed.
         nftest_output=$(nf-test test \
           --profile +docker \
           $(if [ -n "${{ inputs.tags }}" ]; then echo "--tag ${{ inputs.tags }}"; fi) \
           --dry-run \
           --ci \
-          --changed-since HEAD^) || {
+          $(if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then echo "--changed-since HEAD^"; fi)) || {
             echo "nf-test command failed with exit code $?"
             echo "Full output: $nftest_output"
             exit 1
