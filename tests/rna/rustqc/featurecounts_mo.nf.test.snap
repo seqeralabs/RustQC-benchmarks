@@ -1,0 +1,188 @@
+{
+    "featurecounts_O_regression": {
+        "content": [
+            {
+                "biotype_counts": [
+                    "Biotype\tCount",
+                    "protein_coding\t44318",
+                    "pseudogene\t252",
+                    "processed_transcript\t179",
+                    "antisense\t66",
+                    "lincRNA\t63",
+                    "sense_overlapping\t33",
+                    "snoRNA\t9",
+                    "3prime_overlapping_ncrna\t5",
+                    "misc_RNA\t4",
+                    "miRNA\t3",
+                    "polymorphic_pseudogene\t0",
+                    "rRNA\t0",
+                    "sense_intronic\t0",
+                    "snRNA\t0"
+                ],
+                "summary": [
+                    "Status\ttest.bam",
+                    "Assigned\t44698",
+                    "Unassigned_Unmapped\t0",
+                    "Unassigned_Read_Type\t0",
+                    "Unassigned_Singleton\t0",
+                    "Unassigned_MappingQuality\t0",
+                    "Unassigned_Chimera\t0",
+                    "Unassigned_FragmentLength\t0",
+                    "Unassigned_Duplicate\t0",
+                    "Unassigned_MultiMapping\t5496",
+                    "Unassigned_Secondary\t0",
+                    "Unassigned_NonSplit\t0",
+                    "Unassigned_NoFeatures\t2645",
+                    "Unassigned_Overlapping_Length\t0",
+                    "Unassigned_Ambiguity\t0"
+                ],
+                "biotype_summary": [
+                    "Status\ttest.bam",
+                    "Assigned\t44698",
+                    "Unassigned_Unmapped\t0",
+                    "Unassigned_Read_Type\t0",
+                    "Unassigned_Singleton\t0",
+                    "Unassigned_MappingQuality\t0",
+                    "Unassigned_Chimera\t0",
+                    "Unassigned_FragmentLength\t0",
+                    "Unassigned_Duplicate\t0",
+                    "Unassigned_MultiMapping\t5496",
+                    "Unassigned_Secondary\t0",
+                    "Unassigned_NonSplit\t0",
+                    "Unassigned_NoFeatures\t2645",
+                    "Unassigned_Overlapping_Length\t0",
+                    "Unassigned_Ambiguity\t0"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-24T14:13:48.282505",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.10.0"
+        }
+    },
+    "featurecounts_M_regression": {
+        "content": [
+            {
+                "biotype_counts": [
+                    "Biotype\tCount",
+                    "protein_coding\t49065",
+                    "pseudogene\t380",
+                    "processed_transcript\t116",
+                    "antisense\t66",
+                    "lincRNA\t47",
+                    "sense_overlapping\t33",
+                    "misc_RNA\t4",
+                    "snoRNA\t3",
+                    "miRNA\t1",
+                    "3prime_overlapping_ncrna\t0",
+                    "polymorphic_pseudogene\t0",
+                    "rRNA\t0",
+                    "sense_intronic\t0",
+                    "snRNA\t0"
+                ],
+                "summary": [
+                    "Status\ttest.bam",
+                    "Assigned\t46885",
+                    "Unassigned_Unmapped\t0",
+                    "Unassigned_Read_Type\t0",
+                    "Unassigned_Singleton\t0",
+                    "Unassigned_MappingQuality\t0",
+                    "Unassigned_Chimera\t0",
+                    "Unassigned_FragmentLength\t0",
+                    "Unassigned_Duplicate\t0",
+                    "Unassigned_MultiMapping\t0",
+                    "Unassigned_Secondary\t0",
+                    "Unassigned_NonSplit\t0",
+                    "Unassigned_NoFeatures\t2719",
+                    "Unassigned_Overlapping_Length\t0",
+                    "Unassigned_Ambiguity\t3235"
+                ],
+                "biotype_summary": [
+                    "Status\ttest.bam",
+                    "Assigned\t49715",
+                    "Unassigned_Unmapped\t0",
+                    "Unassigned_Read_Type\t0",
+                    "Unassigned_Singleton\t0",
+                    "Unassigned_MappingQuality\t0",
+                    "Unassigned_Chimera\t0",
+                    "Unassigned_FragmentLength\t0",
+                    "Unassigned_Duplicate\t0",
+                    "Unassigned_MultiMapping\t0",
+                    "Unassigned_Secondary\t0",
+                    "Unassigned_NonSplit\t0",
+                    "Unassigned_NoFeatures\t2719",
+                    "Unassigned_Overlapping_Length\t0",
+                    "Unassigned_Ambiguity\t405"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-24T14:13:16.892765",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.10.0"
+        }
+    },
+    "featurecounts_MO_regression": {
+        "content": [
+            {
+                "biotype_counts": [
+                    "Biotype\tCount",
+                    "protein_coding\t49467",
+                    "pseudogene\t670",
+                    "processed_transcript\t197",
+                    "antisense\t70",
+                    "lincRNA\t64",
+                    "sense_overlapping\t33",
+                    "snoRNA\t10",
+                    "3prime_overlapping_ncrna\t7",
+                    "misc_RNA\t4",
+                    "miRNA\t3",
+                    "polymorphic_pseudogene\t0",
+                    "rRNA\t0",
+                    "sense_intronic\t0",
+                    "snRNA\t0"
+                ],
+                "summary": [
+                    "Status\ttest.bam",
+                    "Assigned\t50120",
+                    "Unassigned_Unmapped\t0",
+                    "Unassigned_Read_Type\t0",
+                    "Unassigned_Singleton\t0",
+                    "Unassigned_MappingQuality\t0",
+                    "Unassigned_Chimera\t0",
+                    "Unassigned_FragmentLength\t0",
+                    "Unassigned_Duplicate\t0",
+                    "Unassigned_MultiMapping\t0",
+                    "Unassigned_Secondary\t0",
+                    "Unassigned_NonSplit\t0",
+                    "Unassigned_NoFeatures\t2719",
+                    "Unassigned_Overlapping_Length\t0",
+                    "Unassigned_Ambiguity\t0"
+                ],
+                "biotype_summary": [
+                    "Status\ttest.bam",
+                    "Assigned\t50120",
+                    "Unassigned_Unmapped\t0",
+                    "Unassigned_Read_Type\t0",
+                    "Unassigned_Singleton\t0",
+                    "Unassigned_MappingQuality\t0",
+                    "Unassigned_Chimera\t0",
+                    "Unassigned_FragmentLength\t0",
+                    "Unassigned_Duplicate\t0",
+                    "Unassigned_MultiMapping\t0",
+                    "Unassigned_Secondary\t0",
+                    "Unassigned_NonSplit\t0",
+                    "Unassigned_NoFeatures\t2719",
+                    "Unassigned_Overlapping_Length\t0",
+                    "Unassigned_Ambiguity\t0"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-24T14:14:19.674908",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.10.0"
+        }
+    }
+}
