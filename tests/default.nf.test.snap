@@ -3,7 +3,7 @@
         "content": [
             {
                 "RUSTQC_RNA": {
-                    "rustqc": "0.1.0"
+                    "rustqc": "0.2.1"
                 },
                 "Workflow": {
                     "seqeralabs/rustqc-benchmarks": "v1.0.0dev"
@@ -166,6 +166,7 @@
                 "pipeline_info",
                 "pipeline_info/rustqc_benchmarks_software_versions.yml",
                 "rustqc",
+                "rustqc/CITATIONS.md",
                 "rustqc/dupradar",
                 "rustqc/dupradar/test_dupMatrix.txt",
                 "rustqc/dupradar/test_dup_intercept_mqc.txt",
@@ -223,7 +224,7 @@
                 "rustqc/rseqc/junction_annotation/test.junction.Interact.bed",
                 "rustqc/rseqc/junction_annotation/test.junction.bed",
                 "rustqc/rseqc/junction_annotation/test.junction.xls",
-                "rustqc/rseqc/junction_annotation/test.junction_annotation.txt",
+                "rustqc/rseqc/junction_annotation/test.junction_annotation.log",
                 "rustqc/rseqc/junction_annotation/test.junction_plot.r",
                 "rustqc/rseqc/junction_annotation/test.splice_events.png",
                 "rustqc/rseqc/junction_annotation/test.splice_events.svg",
@@ -338,7 +339,6 @@
                 "test.biotype_counts_mqc.tsv:md5,867677b022312988f0e12e9825b4d4d9",
                 "test.biotype_counts_rrna_mqc.tsv:md5,31c68d05ffe90d1e3eb2cb2ef9a7b4d9",
                 "test.featureCounts.biotype.tsv.summary:md5,a12f0baf70631499b79bffbe67bcdcf3",
-                "test.featureCounts.tsv:md5,c790b991f7544b0daf7db2d51a101bec",
                 "test.featureCounts.tsv.summary:md5,2dba8f90d0ec98ca011ac476ec136163",
                 "Coverage Profile Along Genes (High).png:md5,df24c54868230e5520b662d72efb94d1",
                 "Coverage Profile Along Genes (High).svg:md5,d2b4b774578258e451562c61bead6e40",
@@ -368,7 +368,7 @@
                 "test.junction.Interact.bed:md5,b9e08119087a03861a26d17b687ec1f8",
                 "test.junction.bed:md5,a3ae52cc52014719edcaa41e44b65cd4",
                 "test.junction.xls:md5,5d374b6f9ae58850e90718a56141c0b4",
-                "test.junction_annotation.txt:md5,7796e989592167cc75a3feed7340eb8f",
+                "test.junction_annotation.log:md5,7796e989592167cc75a3feed7340eb8f",
                 "test.junction_plot.r:md5,85a82016f02b3a249daba4b73d353c5c",
                 "test.splice_events.png:md5,b9b4ac79b709a479f97b2dcbb6536f78",
                 "test.splice_events.svg:md5,245e55d0d08823f285de004b71291764",
@@ -387,12 +387,15 @@
                 "test.flagstat:md5,78f7ee12263f994e882c6d7bb420035c",
                 "test.idxstats:md5,5a0291e978e37d58575310e5e49aefd2",
                 "test.stats:md5,84279406e64ba507afb84a7fd082819e"
-            ]
+            ],
+            {
+                "rustqc/featurecounts/test.featureCounts.tsv (without header)": "9b467df520c5339b8131cdd447794354"
+            }
         ],
-        "timestamp": "2026-04-02T11:26:05.064090155",
+        "timestamp": "2026-11-24T12:55:03.451515876",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "25.04.0"
         }
     }
 }
