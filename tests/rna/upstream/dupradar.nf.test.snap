@@ -2911,12 +2911,12 @@
                     "ENSG00000219814\t460\t0\t0\tNA\t0\t0\t0\t0\t0\tNA\t0\t0\t0"
                 ],
                 "intercept_slope": [
-                    "test - dupRadar Int (duprate at low read counts): 0.033129470166849 ",
-                    "test - dupRadar Sl (progression of the duplication rate): 1.55223856783934"
+                    "test - dupRadar Int (duprate at low read counts): 0.03312947017",
+                    "test - dupRadar Sl (progression of the duplication rate): 1.552238568"
                 ]
             }
         ],
-        "timestamp": "2026-11-24T13:51:34.761767855",
+        "timestamp": "2026-11-24T14:01:55.883614983",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "25.04.0"
