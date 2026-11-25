@@ -172,7 +172,9 @@ from `tests/datasets.yml` (override with `RUSTQC_BASELINE_IMAGE`). It then compa
 
 - every file exactly, except plots (`*.png`, `*.svg`, `*.pdf`) and `CITATIONS.md`, and after
   dropping version/command-line header lines (featureCounts `# Program:`, the samtools stats
-  header). The exclusions are listed in `tests/lib/checks/ReleaseRegression.groovy`;
+  header) and the Qualimap report's run timestamps. Qualimap junction motifs with equal
+  percentages are compared as a set, because RustQC lists them in a random order (a known RustQC
+  bug). The exclusions are listed in `tests/lib/checks/ReleaseRegression.groovy`;
 - a file the baseline writes but the current run does not fails; a new file is only reported;
 - intentional changes since the release go in `release_regression.accepted_differences`
   (`{path: <glob under rustqc/>, reason: ..., datasets: [optional ids]}`): reported, not failed.
