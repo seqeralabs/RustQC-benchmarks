@@ -161,6 +161,79 @@ class CompareUtils {
         return (from < end) ? lines.subList(from, end) : []
     }
 
+    // ── bigWig / bedGraph helpers ─────────────────────────────────────
+
+    /**
+     * Container image used to decode bigWig files when no host
+     * `bigWigToBedGraph` binary is available. The UCSC tools version is
+     * irrelevant to correctness here — decoding reproduces the coverage
+     * intervals regardless of the version that wrote the file.
+     */
+    static final String BIGWIGTOBEDGRAPH_IMAGE =
+        'quay.io/biocontainers/ucsc-bigwigtobedgraph:469--h664eb37_1'
+
+    /**
+     * Decode a bigWig file to bedGraph intervals.
+     *
+     * Binary .bigWig files are NOT bit-identical to UCSC output, so we
+     * never compare them directly. Instead we decode to bedGraph (which
+     * yields the exact coverage intervals) and compare those.
+     *
+     * Uses the host `bigWigToBedGraph` binary if present, otherwise falls
+     * back to running it inside the UCSC tools Docker container. The
+     * decode runs here in the nf-test `then` block — never as a
+     * docker-in-docker step inside a Nextflow process.
+     *
+     * @param bigWig  Path to the .bigWig file to decode
+     * @return        bedGraph lines (chrom, start, end, value), sorted by
+     *                coordinate as emitted by bigWigToBedGraph
+     */
+    static List<String> bedGraphFromBigWig(java.nio.file.Path bigWig) {
+        def bw  = bigWig.toAbsolutePath()
+        assert java.nio.file.Files.exists(bw) : "bigWig not found: ${bw}"
+
+        def out = java.io.File.createTempFile('rustqc_bigwig_', '.bedGraph')
+        out.deleteOnExit()
+
+        List<String> cmd
+        if (hasCommand('bigWigToBedGraph')) {
+            cmd = ['bigWigToBedGraph', bw.toString(), out.absolutePath]
+        } else {
+            def bwDir  = bw.parent.toString()
+            def outDir = out.parentFile.absolutePath
+            cmd = ['docker', 'run', '--rm',
+                   '-v', "${bwDir}:${bwDir}",
+                   '-v', "${outDir}:${outDir}",
+                   BIGWIGTOBEDGRAPH_IMAGE,
+                   'bigWigToBedGraph', bw.toString(), out.absolutePath]
+        }
+
+        runOrThrow(cmd)
+        def lines = out.readLines()
+        out.delete()
+        return lines
+    }
+
+    /**
+     * Exact 4-column comparison of two bedGraph interval lists
+     * (chrom, start, end, value). No tolerance — intervals must match
+     * bedtools + bedClip output exactly.
+     */
+    static void bedGraphMatch(List<String> actual, List<String> expected) {
+        tsvMatch(actual, expected, [tolerance: 0.0])
+    }
+
+    /**
+     * MD5 of bedGraph content, computed as `join('\n', lines) + '\n'` so
+     * the result matches `md5sum` of a file ending in a trailing newline.
+     */
+    static String md5BedGraphLines(List<String> lines) {
+        String content = lines.join('\n') + '\n'
+        def digest = java.security.MessageDigest.getInstance('MD5')
+        byte[] hash = digest.digest(content.getBytes('UTF-8'))
+        return hash.collect { String.format('%02x', it) }.join('')
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────
 
     /**
@@ -184,5 +257,28 @@ class CompareUtils {
             }
         }
         return result
+    }
+
+    /** Return true if `cmd` is on the PATH of the host. */
+    private static boolean hasCommand(String cmd) {
+        try {
+            def proc = ['bash', '-lc', "command -v ${cmd} >/dev/null 2>&1"].execute()
+            proc.waitFor()
+            return proc.exitValue() == 0
+        } catch (Exception e) {
+            return false
+        }
+    }
+
+    /** Run a command, capturing combined stdout/stderr; assert exit code 0. */
+    private static void runOrThrow(List<String> cmd) {
+        // Coerce GStrings to plain Strings so ProcessBuilder's String[] holds
+        def pb = new ProcessBuilder(cmd.collect { it.toString() })
+        pb.redirectErrorStream(true)
+        def proc = pb.start()
+        String output = proc.inputStream.text
+        proc.waitFor()
+        assert proc.exitValue() == 0 :
+            "Command failed (exit ${proc.exitValue()}): ${cmd.join(' ')}\n${output}"
     }
 }
