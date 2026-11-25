@@ -35,15 +35,18 @@ runs:
     - name: Get number of shards
       id: shards
       shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
       run: |
         # Run nf-test with dynamic parameter.
-        # Manual (workflow_dispatch) runs test everything; PRs only test what changed.
+        # Pull requests only test what changed; every other event (manual dispatch, the
+        # schedule, pushes to main, releases) tests everything.
         nftest_output=$(nf-test test \
           --profile +docker \
           $(if [ -n "${{ inputs.tags }}" ]; then echo "--tag ${{ inputs.tags }}"; fi) \
           --dry-run \
           --ci \
-          $(if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then echo "--changed-since HEAD^"; fi)) || {
+          $(if [ "$EVENT_NAME" == "pull_request" ]; then echo "--changed-since HEAD^"; fi)) || {
             echo "nf-test command failed with exit code $?"
             echo "Full output: $nftest_output"
             exit 1
