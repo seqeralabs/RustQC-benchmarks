@@ -112,7 +112,12 @@ jobs:
           profile: ${{ matrix.profile }}
           shard: ${{ matrix.shard }}
           total_shards: ${{ env.TOTAL_SHARDS }}
-          tags: ${{ env.NFT_TAG }}
+          # The RustQC module is container-only: RustQC is tested from the dev image
+          # (ghcr.io/seqeralabs/rustqc:dev), which has no conda equivalent (bioconda only
+          # ships releases). With the conda profile, Nextflow disables docker, so any test
+          # that runs RustQC fails with "rustqc: command not found". Conda jobs therefore
+          # only run the `upstream` tests, which run the nf-core modules and never RustQC.
+          tags: ${{ matrix.profile == 'conda' && 'upstream' || env.NFT_TAG }}
 
       - name: Report test status
         if: ${{ always() }}
