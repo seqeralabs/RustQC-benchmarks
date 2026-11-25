@@ -91,7 +91,7 @@ class ReleaseRegression {
         assert base != cur : \
             "The baseline and current runs used the same RustQC binary (${base}), so the " +
             "comparison would be trivially exact. Use a profile with a container engine, or set " +
-            "RUSTQC_BASELINE_BIN and RUSTQC_CURRENT_BIN to two different binaries (see tests/README.md)."
+            "RUSTQC_BASELINE_BIN and RUSTQC_CURRENT_BIN to two different binaries (see tests/DATASETS.md)."
         if (binDir('RUSTQC_BASELINE_BIN')) return
         def tag = datasets.Datasets.baselineImage().tokenize(':').last()
         def m = tag =~ /^v?(\d+\.\d+\.\d+)/

@@ -9,7 +9,7 @@ import datasets.Datasets
 //
 // Tests are generated in a Groovy loop over the manifest (verified with nf-test 0.9.5; list them
 // with `nf-test test --dry-run`, since `nf-test list` does not load tests/lib; see
-// tests/README.md). Select one dataset with `--tag ds_<id>`, or an axis with e.g. `--tag pe`.
+// tests/DATASETS.md). Select one dataset with `--tag ds_<id>`, or an axis with e.g. `--tag pe`.
 nextflow_process {
 
     name "RustQC dataset matrix"
