@@ -45,7 +45,7 @@ jobs:
           uv tool install pre-commit
 
       - name: Run nf-core pipelines lint
-        if: ${{ github.base_ref != 'master' }}
+        if: ${{ github.base_ref != 'master' && github.base_ref != 'main' }}
         env:
           GITHUB_COMMENTS_URL: ${{ github.event.pull_request.comments_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,7 +53,7 @@ jobs:
         run: nf-core -l lint_log.txt pipelines lint --dir ${GITHUB_WORKSPACE} --markdown lint_results.md
 
       - name: Run nf-core pipelines lint --release
-        if: ${{ github.base_ref == 'master' }}
+        if: ${{ github.base_ref == 'master' || github.base_ref == 'main' }}
         env:
           GITHUB_COMMENTS_URL: ${{ github.event.pull_request.comments_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,3 +73,21 @@ jobs:
             lint_log.txt
             lint_results.md
             PR_number.txt
+
+      # Build a comment for the shared pr-comment.yml poster to publish on the PR
+      - name: Prepare PR comment
+        if: ${{ always() }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p pr-comment
+          echo "$PR_NUMBER" > pr-comment/pr_number.txt
+          echo "lint" > pr-comment/header.txt
+          [ -f lint_results.md ] && cp lint_results.md pr-comment/comment.md || true
+
+      - name: Upload PR comment artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # ratchet:actions/upload-artifact@v7.0.0
+        with:
+          name: pr-comment
+          path: pr-comment/
