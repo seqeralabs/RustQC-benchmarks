@@ -94,13 +94,104 @@
                         "Unassigned_Overlapping_Length\t0",
                         "Unassigned_Ambiguity\t2525"
                     ]
+                },
+                "samtools_stats": {
+                    "summary": [
+                        "SN\traw total sequences:\t49573\t# excluding supplementary and secondary reads",
+                        "SN\tfiltered sequences:\t0",
+                        "SN\tsequences:\t49573",
+                        "SN\tis sorted:\t1\t# sorted by coordinate",
+                        "SN\t1st fragments:\t24797",
+                        "SN\tlast fragments:\t24776",
+                        "SN\treads mapped:\t49573",
+                        "SN\treads mapped and paired:\t49546\t# paired-end technology bit set + both mates mapped",
+                        "SN\treads unmapped:\t0",
+                        "SN\treads properly paired:\t49546\t# proper-pair bit set",
+                        "SN\treads paired:\t49573\t# paired-end technology bit set",
+                        "SN\treads duplicated:\t6097\t# PCR or optical duplicate bit set",
+                        "SN\treads MQ0:\t42\t# mapped and MQ=0",
+                        "SN\treads QC failed:\t0",
+                        "SN\tnon-primary alignments:\t3266",
+                        "SN\tsupplementary alignments:\t0",
+                        "SN\ttotal length:\t7198960\t# ignores clipping",
+                        "SN\ttotal first fragment length:\t3585769\t# ignores clipping",
+                        "SN\ttotal last fragment length:\t3613191\t# ignores clipping",
+                        "SN\tbases mapped:\t7198960\t# ignores clipping",
+                        "SN\tbases mapped (cigar):\t6924285\t# more accurate",
+                        "SN\tbases trimmed:\t0",
+                        "SN\tbases duplicated:\t892156",
+                        "SN\tmismatches:\t39821\t# from NM fields",
+                        "SN\terror rate:\t5.750919e-03\t# mismatches / bases mapped (cigar)",
+                        "SN\taverage length:\t145",
+                        "SN\taverage first fragment length:\t145",
+                        "SN\taverage last fragment length:\t146",
+                        "SN\tmaximum length:\t151",
+                        "SN\tmaximum first fragment length:\t151",
+                        "SN\tmaximum last fragment length:\t151",
+                        "SN\taverage quality:\t38.6",
+                        "SN\tinsert size average:\t1625.9",
+                        "SN\tinsert size standard deviation:\t2305.4",
+                        "SN\tinward oriented pairs:\t24656",
+                        "SN\toutward oriented pairs:\t117",
+                        "SN\tpairs with other orientation:\t0",
+                        "SN\tpairs on different chromosomes:\t0",
+                        "SN\tpercentage of properly paired reads (%):\t99.9"
+                    ],
+                    "data_md5": "cc489c3cbb4b9b046719f534b9a99774",
+                    "rows": 10562
+                },
+                "read_distribution": [
+                    "Total Reads                   43476",
+                    "Total Tags                    68660",
+                    "Total Assigned Tags           68134",
+                    "=====================================================================",
+                    "Group               Total_bases         Tag_count           Tags/Kb",
+                    "CDS_Exons           4044880             56186               13.89",
+                    "5'UTR_Exons         330435              1226                3.71",
+                    "3'UTR_Exons         1612537             7495                4.65",
+                    "Introns             76001214            2905                0.04",
+                    "TSS_up_1kb          1653858             20                  0.01",
+                    "TSS_up_5kb          7587428             79                  0.01",
+                    "TSS_up_10kb         13916043            112                 0.01",
+                    "TES_down_1kb        1776688             106                 0.06",
+                    "TES_down_5kb        7973699             185                 0.02",
+                    "TES_down_10kb       14299868            210                 0.01",
+                    "====================================================================="
+                ],
+                "read_duplication": {
+                    "pos": {
+                        "md5": "a8685038a7ba602af28a3d69cd2832be",
+                        "rows": 39
+                    },
+                    "seq": {
+                        "md5": "44fe1525d1490024c49fc07a31ec4207",
+                        "rows": 34
+                    }
+                },
+                "junction_annotation": {
+                    "bed": {
+                        "md5": "a3ae52cc52014719edcaa41e44b65cd4",
+                        "rows": 3261
+                    },
+                    "xls": {
+                        "md5": "5d374b6f9ae58850e90718a56141c0b4",
+                        "rows": 3262
+                    }
+                },
+                "dupradar": {
+                    "matrix_md5": "688ef39194baa6f1766b2c45c2abeec9",
+                    "genes": 2905,
+                    "slope": [
+                        "test - dupRadar Int (duprate at low read counts): 0.03312947025247037",
+                        "test - dupRadar Sl (progression of the duplication rate): 1.5522385655558626"
+                    ]
                 }
             }
         ],
-        "timestamp": "2026-11-24T15:15:41.6767923",
+        "timestamp": "2026-11-25T10:19:58.998314788",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "26.10.7"
+            "nextflow": "25.10.4"
         }
     }
 }

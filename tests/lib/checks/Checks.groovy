@@ -27,6 +27,11 @@ class Checks {
         new Flagstat(),
         new Idxstats(),
         new FeatureCountsGeneId(),
+        new SamtoolsStats(),
+        new ReadDistribution(),
+        new ReadDuplication(),
+        new JunctionAnnotation(),
+        new DupRadar(),
     ].asImmutable()
 
     static List<String> toolNames() {
