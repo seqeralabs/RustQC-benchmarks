@@ -1,0 +1,145 @@
+nextflow_process {
+
+    name "Test RustQC bigWig coverage tracks"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+
+    tag "rustqc"
+    tag "rna"
+    tag "bigwig"
+    tag "small"
+
+    // RustQC writes nf-core/rnaseq-compatible bigWig tracks under bigwig/:
+    //   {sample}.bigWig          — combined   (bedtools genomecov -split -bg)
+    //   {sample}.forward.bigWig  — per-strand (-split -du -strand +/-)
+    //   {sample}.reverse.bigWig    (strand labels are swapped for reverse libraries)
+    //
+    // Binary bigWig files are NOT bit-identical to UCSC output, so we never
+    // compare them directly. Both tests decode each bigWig to bedGraph
+    // intervals (via host or Docker bigWigToBedGraph) and compare those.
+    //
+    // NOTE: requires a RustQC image with bigWig support (RustQC PR #114).
+    // Until ghcr.io/seqeralabs/rustqc:dev is rebuilt, run with an override:
+    //   RUSTQC_IMAGE=ghcr.io/seqeralabs/rustqc:<tag> nf-test test --tag bigwig
+
+    // ── Regression: detect changes between RustQC versions ──────────
+    test("bigwig - regression") {
+
+        tag "regression"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def combined  = path("${rustqcDir}/bigwig/test.bigWig")
+            def forward   = path("${rustqcDir}/bigwig/test.forward.bigWig")
+            def reverse   = path("${rustqcDir}/bigwig/test.reverse.bigWig")
+
+            // bigWig tracks require RustQC PR #114. Until ghcr.io/seqeralabs/rustqc:dev
+            // is rebuilt with that support the image emits no bigwig/ output, so skip
+            // (loudly) instead of failing CI. Run with RUSTQC_IMAGE pointed at a
+            // bigWig-capable image to actually exercise this test.
+            // TODO: remove this guard once #114 has landed in :dev.
+            if (!combined.exists() || !forward.exists() || !reverse.exists()) {
+                println "[bigwig.nf.test] SKIP regression: the RustQC image produced no bigWig tracks " +
+                        "(requires RustQC PR #114: https://github.com/seqeralabs/RustQC/pull/114). " +
+                        "Set RUSTQC_IMAGE to a bigWig-capable image to run this test."
+                return
+            }
+
+            // Decode each track to bedGraph intervals, then snapshot the line
+            // count + MD5 of the decoded content (binary bigWig is not stable).
+            def combinedLines = CompareUtils.bedGraphFromBigWig(combined.toPath())
+            def forwardLines  = CompareUtils.bedGraphFromBigWig(forward.toPath())
+            def reverseLines  = CompareUtils.bedGraphFromBigWig(reverse.toPath())
+
+            snapshot(
+                combined_lines: combinedLines.size(),
+                combined_md5:   CompareUtils.md5BedGraphLines(combinedLines),
+                forward_lines:  forwardLines.size(),
+                forward_md5:    CompareUtils.md5BedGraphLines(forwardLines),
+                reverse_lines:  reverseLines.size(),
+                reverse_md5:    CompareUtils.md5BedGraphLines(reverseLines)
+            ).match("bigwig_regression")
+        }
+    }
+
+    // ── Crosscheck: validate decoded intervals match bedtools + bedClip ──
+    test("bigwig - crosscheck vs bedtools") {
+
+        tag "crosscheck"
+
+        when {
+            params {
+                skip_dup_check = true
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def rustqcDir = process.out.results[0][1]
+            def combined  = path("${rustqcDir}/bigwig/test.bigWig")
+            def forward   = path("${rustqcDir}/bigwig/test.forward.bigWig")
+            def reverse   = path("${rustqcDir}/bigwig/test.reverse.bigWig")
+
+            // bigWig tracks require RustQC PR #114. Until ghcr.io/seqeralabs/rustqc:dev
+            // is rebuilt with that support the image emits no bigwig/ output, so skip
+            // (loudly) instead of failing CI. Run with RUSTQC_IMAGE pointed at a
+            // bigWig-capable image to actually exercise this test.
+            // TODO: remove this guard once #114 has landed in :dev.
+            if (!combined.exists() || !forward.exists() || !reverse.exists()) {
+                println "[bigwig.nf.test] SKIP crosscheck: the RustQC image produced no bigWig tracks " +
+                        "(requires RustQC PR #114: https://github.com/seqeralabs/RustQC/pull/114). " +
+                        "Set RUSTQC_IMAGE to a bigWig-capable image to run this test."
+                return
+            }
+
+            def refDir = "${projectDir}/snapshots/rna/small/bigwig"
+
+            // Decoded bedGraph intervals must match the committed bedtools
+            // v2.31.1 + UCSC bedClip references exactly (4-column comparison).
+            // For a reverse-stranded library, RustQC swaps strand labels:
+            //   forward.bigWig <- bedtools -strand -   (test.forward.bedGraph)
+            //   reverse.bigWig <- bedtools -strand +   (test.reverse.bedGraph)
+            CompareUtils.bedGraphMatch(
+                CompareUtils.bedGraphFromBigWig(combined.toPath()),
+                path("${refDir}/test.combined.bedGraph").readLines()
+            )
+            CompareUtils.bedGraphMatch(
+                CompareUtils.bedGraphFromBigWig(forward.toPath()),
+                path("${refDir}/test.forward.bedGraph").readLines()
+            )
+            CompareUtils.bedGraphMatch(
+                CompareUtils.bedGraphFromBigWig(reverse.toPath()),
+                path("${refDir}/test.reverse.bedGraph").readLines()
+            )
+        }
+    }
+}

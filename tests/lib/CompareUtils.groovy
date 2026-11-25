@@ -161,7 +161,111 @@ class CompareUtils {
         return (from < end) ? lines.subList(from, end) : []
     }
 
+    // ── bigWig helpers ─────────────────────────────────────────────────
+
+    /**
+     * Docker fallback image for decoding bigWig files when a host
+     * `bigWigToBedGraph` binary is not available on PATH.
+     */
+    static final String BIGWIGTOBEDGRAPH_IMAGE =
+        'quay.io/biocontainers/ucsc-bigwigtobedgraph:469--h664eb37_1'
+
+    /**
+     * Decode a binary bigWig file to bedGraph intervals.
+     *
+     * Binary bigWig files are NOT bit-identical to UCSC output, so we never
+     * compare them directly. Instead we decode them to bedGraph (4-column:
+     * chrom, start, end, value) and compare the intervals.
+     *
+     * Decoding prefers a host `bigWigToBedGraph` binary (fast, no Docker
+     * round-trip); if that is not on PATH it falls back to the UCSC
+     * biocontainer ({@link #BIGWIGTOBEDGRAPH_IMAGE}). The decode happens in
+     * the nf-test `then {}` block — never via docker-in-docker inside a
+     * Nextflow process.
+     *
+     * @param bigWig  Path to the .bigWig file to decode
+     * @return        bedGraph lines (genomic order, as emitted by bigWigToBedGraph)
+     * @throws AssertionError if the file is missing or decoding fails
+     */
+    static List<String> bedGraphFromBigWig(java.nio.file.Path bigWig) {
+        assert java.nio.file.Files.exists(bigWig) :
+            "bigWig file not found: ${bigWig}\n" +
+            "Does the RustQC image include bigWig support? (requires RustQC PR #114)"
+
+        def bw = bigWig.toAbsolutePath()
+        // Decode beside the bigWig so the output dir is always a path Docker can
+        // bind-mount (the system temp dir, e.g. /var/folders on macOS, often is not).
+        def out = java.nio.file.Files.createTempFile(
+            bw.parent, 'rustqc_bw_', '.bedGraph').toAbsolutePath()
+        try {
+            // 1. Host binary (fast path)
+            int rc = runCommand(['bigWigToBedGraph', bw.toString(), out.toString()])
+
+            // 2. Docker fallback — one mount covers both input and output (same dir)
+            if (rc != 0) {
+                String dir = bw.parent.toString()
+                rc = runCommand(['docker', 'run', '--rm',
+                    '-v', "${dir}:${dir}".toString(),
+                    BIGWIGTOBEDGRAPH_IMAGE,
+                    'bigWigToBedGraph', bw.toString(), out.toString()])
+            }
+
+            assert rc == 0 :
+                "Failed to decode bigWig ${bigWig.fileName}: neither host nor Docker " +
+                "`bigWigToBedGraph` succeeded (exit ${rc}).\n" +
+                "Install UCSC bigWigToBedGraph or ensure Docker can pull ${BIGWIGTOBEDGRAPH_IMAGE}."
+
+            return out.toFile().readLines()
+        } finally {
+            java.nio.file.Files.deleteIfExists(out)
+        }
+    }
+
+    /**
+     * Compare two sets of decoded bedGraph intervals exactly (4 columns:
+     * chrom, start, end, value). Delegates to {@link #tsvMatch} with zero
+     * tolerance, so every column must match byte-for-byte.
+     *
+     * @param actual    Decoded bedGraph lines from the RustQC bigWig
+     * @param expected  Committed bedtools + bedClip reference lines
+     */
+    static void bedGraphMatch(List<String> actual, List<String> expected) {
+        tsvMatch(actual, expected, [tolerance: 0.0])
+    }
+
+    /**
+     * MD5 of bedGraph content reconstructed from a list of lines.
+     *
+     * Joins the lines with '\n' and appends a trailing newline so the result
+     * matches `md5sum` of the equivalent file (which ends in a newline).
+     *
+     * @param lines  bedGraph lines (as returned by {@link #bedGraphFromBigWig})
+     * @return        lowercase hex MD5 string
+     */
+    static String md5BedGraphLines(List<String> lines) {
+        String content = lines.join('\n') + '\n'
+        def digest = java.security.MessageDigest.getInstance('MD5')
+        return digest.digest(content.getBytes('UTF-8')).encodeHex().toString()
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────
+
+    /**
+     * Run an external command, draining its output, and return the exit code.
+     * Returns 127 if the executable cannot be found (so callers can fall back).
+     */
+    private static int runCommand(List<String> cmd) {
+        try {
+            def pb = new ProcessBuilder(cmd)
+            pb.redirectErrorStream(true)
+            def proc = pb.start()
+            proc.inputStream.eachLine { /* drain to avoid blocking */ }
+            proc.waitFor()
+            return proc.exitValue()
+        } catch (IOException e) {
+            return 127  // command not found — caller falls back
+        }
+    }
 
     /**
      * Filter and clean lines: remove blank lines, trim whitespace,
