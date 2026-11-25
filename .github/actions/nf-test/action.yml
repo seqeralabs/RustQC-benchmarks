@@ -38,8 +38,25 @@ runs:
         version: "${{ env.NFT_VER }}"
         install-pdiff: true
 
+    # The unprivileged apptainer install downloads its dependencies from public Rocky/EPEL
+    # mirrors, which sometimes time out. Retry once (after clearing the partial install) so
+    # a mirror hiccup doesn't fail the job.
     - name: Setup apptainer
+      id: setup_apptainer
       if: contains(inputs.profile, 'singularity')
+      continue-on-error: true
+      uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087 # v3
+
+    - name: Clear partial apptainer install before retrying
+      if: contains(inputs.profile, 'singularity') && steps.setup_apptainer.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "::warning::apptainer install failed (likely a mirror timeout); retrying in 30s"
+        rm -rf "${RUNNER_TOOL_CACHE}/apptainer"
+        sleep 30
+
+    - name: Setup apptainer (retry)
+      if: contains(inputs.profile, 'singularity') && steps.setup_apptainer.outcome == 'failure'
       uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087 # v3
 
     - name: Set up Singularity
