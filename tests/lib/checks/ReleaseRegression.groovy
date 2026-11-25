@@ -45,6 +45,8 @@ class ReleaseRegression {
         // samtools stats header ("# This file was produced by samtools stats and RustQC",
         // "# The command line was: ..."): constant today, but meant to carry version/command
         [glob: 'samtools/*.stats', regex: ~/^# (This file was produced by|The command line was:).*/],
+        // Qualimap HTML report: "Analysis date" and the footer carry the run's wall-clock time
+        [glob: 'qualimap/qualimapReport.html', regex: ~/.*\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}.*/],
     ].asImmutable()
 
     // ── Test entry points ─────────────────────────────────────────────
