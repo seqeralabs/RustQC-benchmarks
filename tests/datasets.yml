@@ -32,6 +32,8 @@
 sources:
   # nf-core/test-datasets `modules` branch, pinned by commit SHA (branch head on 2026-11-24).
   nfcore_modules: https://raw.githubusercontent.com/nf-core/test-datasets/65d3096343daeb3ae88795314c481d15b89284c5/data
+  # nf-core/test-datasets `rnasplice` branch, pinned by commit SHA (branch head on 2026-11-25).
+  nfcore_rnasplice: https://raw.githubusercontent.com/nf-core/test-datasets/15ee35f8b36259b4b25c28ad5df6efa07e58b2a5
 
 # RustQC release-regression check (tests/rna/regression/release.nf.test): the current RustQC
 # (params.rustqc_image) and the baseline release below run on every dataset and their outputs
@@ -82,3 +84,192 @@ datasets:
       bam_name: test.bam
     expect: {}
     tags: [pe, reverse, ensembl, grch37, single_contig, picard_dups]
+
+  - id: hs_chr22_pe_fwd
+    description: >-
+      Human GRCh38 chr22 slice (`chr22`, 40 kb), paired-end 2x150, STAR 2.7.10a. The nf-core
+      modules RNA test BAM: 8,828 records, 1,786 secondary (many multi-mappers), not
+      duplicate-marked. The matching annotation has only 6 genes, so most reads are intergenic.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.bam"
+        md5: ed988b6b245e68c27d0a4bc6bdecfa94
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.bam.bai"
+        md5: 34b8f1c083ecbc7af69f7ebfc3df0e97
+      gtf:
+        url: "{nfcore_modules}/genomics/homo_sapiens/genome/genome.gtf"
+        md5: 50fc877b1c53b36b3b413aff88bda48c
+    meta:
+      single_end: false
+      strandedness: forward
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_chr22_pe_fwd
+    expect:
+      # dupRadar (R) exits with status 1 on this input (6 genes, most reads intergenic).
+      dupradar: upstream_error
+    tags: [pe, forward, ensembl, grch38, chr_prefix, multimappers]
+
+  - id: hs_chrXsub_pe_unstr
+    description: >-
+      Human GRCh37 chrX slice (`X`, 3.4 Mb), paired-end 2x75, unstranded (GEUVADIS ERR188383),
+      STAR 2.7.11b. 8,120 records (120 secondary), not duplicate-marked. From the nf-core
+      rnasplice test data; the annotation has transcript and exon records but no gene records.
+    inputs:
+      bam:
+        url: "{nfcore_rnasplice}/chrX_subset/testdata/ERR188383.Aligned.out.bam"
+        md5: 45b5b0c392e4b814194d1b3cf8a29bd1
+      bai:
+        url: "{nfcore_rnasplice}/chrX_subset/testdata/ERR188383.Aligned.out.bam.bai"
+        md5: 843d3a32a33ebbec933591f8907b1edd
+      gtf:
+        url: "{nfcore_rnasplice}/chrX_subset/reference/genes_chrX.gtf"
+        md5: edc6db07a5f0198252782ec4fd16e18a
+    meta:
+      single_end: false
+      strandedness: unstranded
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_chrXsub_pe_unstr
+    expect:
+      # KNOWN DISCREPANCY: RustQC's samtools stats coverage histogram counts one more base at
+      # depth 1 than samtools ('COV [1-1] 1 20944' vs 20943); every other line matches.
+      samtools_stats: regression
+    tags: [pe, unstranded, ensembl, grch37, no_gene_records]
+
+  - id: sc_pe_rev
+    description: >-
+      S. cerevisiae chr I + a GFP transgene contig, paired-end (reads up to 101 bp),
+      reverse-stranded (GSE110004 WT_REP2, the nf-core/rnaseq test data), STAR 2.7.11b,
+      downsampled to 1,872 records. Few introns; not duplicate-marked.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.paired_end.sorted.bam"
+        md5: bdbc872dd134910dfb5c6e6cf1dd77fd
+      bai:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.paired_end.sorted.bam.bai"
+        md5: 890b05a82958be5e18137ee789175012
+      gtf:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/genome_gfp.gtf"
+        md5: c98b12c302f15731bfc36bcf297cfe28
+    meta:
+      single_end: false
+      strandedness: reverse
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/sc_pe_rev
+    expect:
+      # KNOWN DISCREPANCY: RustQC's samtools stats 'SN error rate' differs in the last printed
+      # digit (8.805892e-03 vs samtools' 8.805891e-03); every other line matches.
+      samtools_stats: regression
+    tags: [pe, reverse, ensembl, yeast, transgene, no_gene_records]
+
+  - id: sc_se_rev
+    description: >-
+      S. cerevisiae chr I + a GFP transgene contig, single-end (reads up to 101 bp),
+      reverse-stranded (GSE110004 RAP1_UNINDUCED_REP1, the nf-core/rnaseq test data),
+      STAR 2.7.11b, downsampled to 1,986 records. Not duplicate-marked.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.single_end.sorted.bam"
+        md5: 8effceb3f2dacbbcbe9c468e6e5b1130
+      bai:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.single_end.sorted.bam.bai"
+        md5: 80eabc904d193e5215f9041ba9267ba6
+      gtf:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/genome_gfp.gtf"
+        md5: c98b12c302f15731bfc36bcf297cfe28
+    meta:
+      single_end: true
+      strandedness: reverse
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/sc_se_rev
+    expect: {}
+    tags: [se, reverse, ensembl, yeast, transgene, no_gene_records]
+
+  - id: hs_ribo_chr19_22_se_fwd
+    description: >-
+      Human GRCh38 (Ensembl names, 194 @SQ lines) Ribo-seq, single-end 20-42 nt,
+      forward-stranded (GSE182201 SRX11780885), STAR, reads on 19 and 22 only, filtered to
+      protein-coding loci and downsampled to 82,655 records. Ensembl 111 protein-coding
+      annotation of chr19 + chr22. From the nf-core gedi/price module test data.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/price/bams/SRX11780885.chr19_22.ds50.bam"
+        md5: 58adf889c3f768c1be1de0084464f724
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/price/bams/SRX11780885.chr19_22.ds50.bam.bai"
+        md5: 75f89c62821e9a620572fab98751c5fd
+      gtf:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/price/Homo_sapiens.GRCh38.111_chr19_22.pc.gtf.gz"
+        md5: 45e31f7ff74b62dd60a51056623eeca1
+    meta:
+      single_end: true
+      strandedness: forward
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_ribo_chr19_22_se_fwd
+    expect: {}
+    tags: [se, forward, ensembl, grch38, riboseq, short_reads, many_contigs]
+
+  # ── large: main, weekly schedule and on demand only (RUSTQC_DATASET_SETS=large) ──────────
+
+  - id: hs_chrX_pe_unstr
+    set: large
+    description: >-
+      Human GRCh37 chrX (`X`, full length), paired-end 2x75, unstranded (GEUVADIS ERR188383),
+      STAR 2.7.10a. 100,826 records (2,094 secondary), not duplicate-marked. Full Ensembl chrX
+      annotation (transcript and exon records, no gene records). From the nf-core rnasplice
+      test data.
+    inputs:
+      bam:
+        url: "{nfcore_rnasplice}/testdata/ERR188383.Aligned.out.bam"
+        md5: b0f87a0f7490de44b23c8fb7e2400297
+      bai:
+        url: "{nfcore_rnasplice}/testdata/ERR188383.Aligned.out.bam.bai"
+        md5: 710b133442903288f0e0614dea57d056
+      gtf:
+        url: "{nfcore_rnasplice}/reference/genes_chrX.gtf"
+        md5: 326e7a503309e8ff500b2d8f693a65d0
+    meta:
+      single_end: false
+      strandedness: unstranded
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_chrX_pe_unstr
+    expect: {}
+    tags: [pe, unstranded, ensembl, grch37, no_gene_records, full_chromosome]
+
+  - id: hs_ribo_chr20_se_fwd
+    set: large
+    description: >-
+      Human GRCh38 chr20 (`20`, full length) Ribo-seq, single-end 20-29 nt, forward-stranded
+      (GSE182201 SRX11780887), STAR. 601,681 records, 104,324 secondary. Full Ensembl 111 chr20
+      annotation (34 MB, all biotypes). From the nf-core riboseq test data.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/aligned_reads/SRX11780887_chr20.bam"
+        md5: dfbfaef0142f92bc32cc046c70b4ce6d
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/aligned_reads/SRX11780887_chr20.bam.bai"
+        md5: 6f9ee4ee9966f17c6109f0b75c641e3b
+      gtf:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/Homo_sapiens.GRCh38.111_chr20.gtf"
+        md5: 3721e04433a30777a8ff43a4908afaab
+    meta:
+      single_end: true
+      strandedness: forward
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_ribo_chr20_se_fwd
+    expect: {}
+    tags: [se, forward, ensembl, grch38, riboseq, short_reads, multimappers, full_chromosome]

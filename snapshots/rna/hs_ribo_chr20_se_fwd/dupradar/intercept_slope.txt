@@ -1,0 +1,2 @@
+hs_ribo_chr20_se_fwd - dupRadar Int (duprate at low read counts): 2.90070146547684e-12 
+hs_ribo_chr20_se_fwd - dupRadar Sl (progression of the duplication rate): 1
