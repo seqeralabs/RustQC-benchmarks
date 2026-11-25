@@ -10,9 +10,16 @@
  *     }
  *
  * Environment:
- *   RUSTQC_TESTDATA=local      use each input's `local` copy instead of its `url`
+ *   RUSTQC_DATASET_SETS=small  which test sets to generate tests for: small (default), large,
+ *                              small,large or all. Large datasets only run where asked for
+ *                              (CI: main, the weekly schedule and the `large` dispatch mode).
  *   RUSTQC_DATASETS=a,b        only generate tests for these dataset ids
+ *   RUSTQC_TESTDATA_DIR=dir    directory of pre-downloaded inputs (tests/fetch_testdata.py, or
+ *                              the CI test-data cache). An input whose copy exists there is
+ *                              used instead of its URL; anything missing falls back to the URL.
+ *   RUSTQC_TESTDATA=local      use each input's `local` copy instead of its `url`
  *   RUSTQC_BASELINE_IMAGE=...  override release_regression.baseline_image
+ *   RUSTQC_REFGEN=1            generate the upstream-reference tests (tests/rna/refgen/)
  */
 package datasets
 
@@ -25,7 +32,10 @@ class Datasets {
     private static Map manifest
     private static List<Dataset> loaded
 
-    /** Every dataset in the manifest, in manifest order (filtered by RUSTQC_DATASETS). */
+    /**
+     * The datasets to generate tests for, in manifest order: those of the selected sets
+     * (RUSTQC_DATASET_SETS), narrowed by RUSTQC_DATASETS.
+     */
     static synchronized List<Dataset> all() {
         if (loaded == null) {
             def raw = manifest()
@@ -35,10 +45,77 @@ class Datasets {
             def dupes = ids.findAll { id -> ids.count(id) > 1 }.unique()
             assert !dupes : "Duplicate dataset ids in ${MANIFEST}: ${dupes}"
         }
+        def sets = selectedSets()
+        def selected = loaded.findAll { it.set in sets }
         def only = System.getenv('RUSTQC_DATASETS')
-        if (!only) return loaded
-        def wanted = only.split(',')*.trim() as Set
-        return loaded.findAll { it.id in wanted }
+        if (!only?.trim()) return selected
+        def wanted = only.split(',')*.trim().findAll() as Set
+        def unknown = wanted - (loaded*.id as Set)
+        assert !unknown : "RUSTQC_DATASETS names unknown datasets ${unknown}; known: ${loaded*.id}"
+        return selected.findAll { it.id in wanted }
+    }
+
+    /** Test sets selected by RUSTQC_DATASET_SETS (default: small). */
+    static Set<String> selectedSets() {
+        def value = System.getenv('RUSTQC_DATASET_SETS')?.trim()
+        if (!value) return ['small'] as Set
+        if (value == 'all') return Dataset.SETS as Set
+        def sets = value.split(',')*.trim().findAll() as Set
+        def unknown = sets - (Dataset.SETS as Set)
+        assert !unknown : "RUSTQC_DATASET_SETS names unknown sets ${unknown}; known: ${Dataset.SETS} or all"
+        return sets
+    }
+
+    /** Datasets to generate upstream references for: none unless RUSTQC_REFGEN is set. */
+    static List<Dataset> forRefgen() {
+        def flag = System.getenv('RUSTQC_REFGEN')
+        if (!flag || flag in ['0', 'false']) return []
+        return all().findAll { it.references.dir }
+    }
+
+    /**
+     * The pre-downloaded copy of `url` under RUSTQC_TESTDATA_DIR, or null. A URL maps to
+     * <dir>/<url without its scheme>, e.g.
+     * https://raw.githubusercontent.com/nf-core/test-datasets/<sha>/data/x.bam ->
+     * <dir>/raw.githubusercontent.com/nf-core/test-datasets/<sha>/data/x.bam
+     * (tests/fetch_testdata.py writes the same layout). A copy whose md5 differs from the
+     * manifest's is ignored, so a stale or tampered cache can never change a test's input.
+     */
+    static File cachedCopy(String url, String md5 = null) {
+        def dir = System.getenv('RUSTQC_TESTDATA_DIR')
+        if (!dir) return null
+        def f = new File(new File(dir).absoluteFile, cachePath(url))
+        if (!f.isFile()) {
+            System.err.println("RUSTQC_TESTDATA_DIR: no copy of ${url} in ${dir}, using the URL")
+            return null
+        }
+        if (md5 && md5sum(f) != md5) {
+            System.err.println("RUSTQC_TESTDATA_DIR: ${f} does not have md5 ${md5}, using the URL")
+            return null
+        }
+        return f
+    }
+
+    private static final Map<String, String> MD5_CACHE = [:]
+
+    private static synchronized String md5sum(File f) {
+        return MD5_CACHE.computeIfAbsent(f.path) {
+            def digest = java.security.MessageDigest.getInstance('MD5')
+            f.withInputStream { is ->
+                byte[] buf = new byte[1 << 20]
+                int n
+                while ((n = is.read(buf)) > 0) digest.update(buf, 0, n)
+            }
+            digest.digest().encodeHex().toString()
+        }
+    }
+
+    static String cachePath(String url) {
+        def m = url =~ /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^?#]+)/
+        assert m.find() : "Not a URL: ${url}"
+        def path = m.group(1)
+        assert !path.split('/').any { it == '..' } : "Refusing a URL with '..' segments: ${url}"
+        return path
     }
 
     static List<Dataset> ofClass(String cls) {

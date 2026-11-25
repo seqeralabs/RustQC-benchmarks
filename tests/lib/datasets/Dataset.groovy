@@ -5,12 +5,20 @@ package datasets
 
 class Dataset {
 
+    /** Test sets: `small` runs on every PR, `large` only on main, the weekly schedule and on demand. */
+    static final List<String> SETS = ['small', 'large'].asImmutable()
+
+    /** nf-test tags a manifest entry may not use: CI selects jobs by them. */
+    static final List<String> RESERVED_TAGS = ['upstream', 'refgen'].asImmutable()
+
     String id
     String cls
+    String set
     String description
     String sample
-    Map<String, String> inputs = [:]
     Map<String, Map> inputSpecs = [:]
+    private Map sources
+    private Map<String, String> resolvedInputs
     Map meta
     Map rustqc
     Map references
@@ -23,6 +31,8 @@ class Dataset {
         this.id          = raw.id
         assert id ==~ /[A-Za-z0-9_]+/ : "Dataset id '${id}' must be alphanumeric/underscore (it is used as an nf-test tag)"
         this.cls         = raw['class'] ?: 'content'
+        this.set         = raw.set ?: 'small'
+        assert set in SETS : "Dataset '${id}': unknown set '${set}' (one of ${SETS})"
         this.description = raw.description ?: ''
         this.sample      = raw.sample ?: id
         this.meta        = (raw.meta ?: [:]) as Map
@@ -30,19 +40,39 @@ class Dataset {
         this.references  = (raw.references ?: [:]) as Map
         this.expect      = (raw.expect ?: [:]) as Map
         this.tags        = (raw.tags ?: []).collect { it as String }
+        // Conda CI jobs run only `--tag upstream`, which never runs RustQC; a dataset tag must
+        // not pull RustQC tests into them.
+        def reserved = tags.intersect(RESERVED_TAGS + SETS)
+        assert !reserved : "Dataset '${id}': tags ${reserved} are reserved (sets are added from `set:`)"
+        this.sources     = sources
         (raw.inputs ?: [:]).each { String name, spec ->
-            def s = spec instanceof Map ? spec : [url: spec]
-            inputSpecs[name] = s
-            inputs[name] = resolve(name, s, sources)
+            inputSpecs[name] = spec instanceof Map ? spec : [url: spec]
         }
-        assert inputs.bam && inputs.gtf : "Dataset '${id}' needs at least `bam` and `gtf` inputs"
+        assert inputSpecs.bam && inputSpecs.gtf : "Dataset '${id}' needs at least `bam` and `gtf` inputs"
+    }
+
+    /**
+     * Input name -> URL or local path. Resolved on first use, so only the datasets a run
+     * generates tests for look for (and checksum) a pre-downloaded copy.
+     */
+    synchronized Map<String, String> getInputs() {
+        if (resolvedInputs == null) {
+            resolvedInputs = inputSpecs.collectEntries { name, spec -> [(name): resolve(name, spec, sources)] }
+        }
+        return resolvedInputs
     }
 
     private String resolve(String name, Map spec, Map sources) {
         String url   = spec.url ? expand(spec.url as String, sources) : null
         String local = spec.local ? new File(projectDir, spec.local as String).absolutePath : null
         if (Datasets.useLocal() && local) return local
-        if (url) return url
+        if (url) {
+            // A pre-downloaded copy (CI cache, or tests/fetch_testdata.py) wins over the URL,
+            // if it has the manifest md5.
+            def cached = Datasets.cachedCopy(url, spec.md5 as String)
+            if (cached) return cached.absolutePath
+            return url
+        }
         assert local : "Dataset '${id}' input '${name}' has neither `url` nor `local`"
         return local
     }
@@ -88,9 +118,9 @@ class Dataset {
         return e
     }
 
-    /** nf-test tags for this dataset: ds_<id> plus the manifest tags. */
+    /** nf-test tags for this dataset: ds_<id>, its set (small/large) and the manifest tags. */
     List<String> allTags() {
-        return ["ds_${id}".toString()] + tags
+        return ["ds_${id}".toString(), set] + tags
     }
 
     String toString() { "Dataset(${id})" }

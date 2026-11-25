@@ -13,6 +13,8 @@
 #
 # Per-dataset keys
 #   class       content (has its own upstream references) | equivalence | option (later phases)
+#   set         small (default: runs on every PR) | large (runs on main, weekly and on demand;
+#               see tests/DATASETS.md). The set is also an nf-test tag.
 #   sample      RustQC --sample-name, i.e. the output file prefix (default: the dataset id)
 #   meta        the [meta] map passed to RUSTQC_RNA: single_end, strandedness
 #   rustqc      RUSTQC_RNA params: skip_dup_check, biotype_attribute, rustqc_config
