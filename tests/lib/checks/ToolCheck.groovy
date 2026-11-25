@@ -19,6 +19,13 @@ abstract class ToolCheck {
     /** Outputs this tool writes, relative to `rustqc/`; `{sample}` is the sample name. */
     abstract List<String> getOutputs()
 
+    /**
+     * Upstream reference files crosscheck() reads, relative to the dataset's references.dir,
+     * mapped to where the pipeline (main.nf with --run_upstream) publishes them, relative to
+     * its --outdir. `{sample}` is the sample name. Used by Refgen to (re)generate references.
+     */
+    abstract Map<String, String> getReferences()
+
     abstract void crosscheck(Run run)
 
     abstract Object regressionView(Run run)

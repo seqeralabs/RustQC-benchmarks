@@ -7,6 +7,10 @@ class InferExperiment extends ToolCheck {
 
     List<String> getOutputs() { ['rseqc/infer_experiment/{sample}.infer_experiment.txt'] }
 
+    Map<String, String> getReferences() {
+        ['rseqc/infer_experiment/infer_experiment.txt': 'rseqc/infer_experiment/{sample}.infer_experiment.txt']
+    }
+
     // Measured on hs_chr6_pe_rev: byte-identical to RSeQC infer_experiment.py, including the
     // "This is PairEnd Data" line, so the whole file is compared.
     void crosscheck(Run run) {

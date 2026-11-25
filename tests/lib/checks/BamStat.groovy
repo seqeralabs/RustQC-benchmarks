@@ -7,6 +7,8 @@ class BamStat extends ToolCheck {
 
     List<String> getOutputs() { ['rseqc/bam_stat/{sample}.bam_stat.txt'] }
 
+    Map<String, String> getReferences() { ['rseqc/bam_stat/bam_stat.txt': 'rseqc/bam_stat/{sample}.bam_stat.txt'] }
+
     // Measured on hs_chr6_pe_rev: byte-identical to RSeQC bam_stat.py. Neither file contains
     // the "Load BAM"/"processing" progress lines, so nothing needs filtering.
     void crosscheck(Run run) {

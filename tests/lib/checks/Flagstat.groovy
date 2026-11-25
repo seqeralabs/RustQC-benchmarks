@@ -7,6 +7,8 @@ class Flagstat extends ToolCheck {
 
     List<String> getOutputs() { ['samtools/{sample}.flagstat'] }
 
+    Map<String, String> getReferences() { ['samtools/{sample}.flagstat': 'samtools/{sample}.flagstat'] }
+
     // Measured on hs_chr6_pe_rev: byte-identical to samtools flagstat.
     void crosscheck(Run run) {
         run.assertIdentical(outputs[0], 'samtools/{sample}.flagstat', 'flagstat')

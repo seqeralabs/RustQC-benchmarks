@@ -13,6 +13,13 @@ class FeatureCountsGeneId extends ToolCheck {
         ['featurecounts/{sample}.featureCounts.tsv', 'featurecounts/{sample}.featureCounts.tsv.summary']
     }
 
+    Map<String, String> getReferences() {
+        [
+            'featurecounts_geneid/{sample}.featureCounts.tsv':         'featurecounts_geneid/{sample}.featureCounts.tsv',
+            'featurecounts_geneid/{sample}.featureCounts.tsv.summary': 'featurecounts_geneid/{sample}.featureCounts.tsv.summary',
+        ]
+    }
+
     void crosscheck(Run run) {
         def actualLines   = run.lines(run.output(outputs[0]))
         def expectedLines = run.referenceLines('featurecounts_geneid/{sample}.featureCounts.tsv')

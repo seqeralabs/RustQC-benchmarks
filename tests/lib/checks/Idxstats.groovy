@@ -7,6 +7,8 @@ class Idxstats extends ToolCheck {
 
     List<String> getOutputs() { ['samtools/{sample}.idxstats'] }
 
+    Map<String, String> getReferences() { ['samtools/{sample}.idxstats': 'samtools/{sample}.idxstats'] }
+
     // Measured on hs_chr6_pe_rev: byte-identical to samtools idxstats.
     void crosscheck(Run run) {
         run.assertIdentical(outputs[0], 'samtools/{sample}.idxstats', 'idxstats')
