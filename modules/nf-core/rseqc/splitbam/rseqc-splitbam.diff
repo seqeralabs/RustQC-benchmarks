@@ -1,0 +1,57 @@
+Changes in component 'nf-core/rseqc/splitbam'
+'modules/nf-core/rseqc/splitbam/environment.yml' is unchanged
+Changes in 'rseqc/splitbam/meta.yml':
+--- modules/nf-core/rseqc/splitbam/meta.yml
++++ modules/nf-core/rseqc/splitbam/meta.yml
+@@ -84,6 +84,18 @@
+           pattern: "*.junk.bam"
+           ontologies:
+             - edam: "http://edamontology.org/format_2572" # BAM
++  txt:
++    - - meta:
++          type: map
++          description: |
++            Groovy Map containing sample information
++            e.g. `[ id:'sample1' ]`
++      - "*.split_bam.txt":
++          type: file
++          description: Record counts (total, in, ex, junk) printed by split_bam.py to stdout
++          pattern: "*.split_bam.txt"
++          ontologies:
++            - edam: "http://edamontology.org/format_2330" # Textual format
+   versions_rseqc:
+     - - ${task.process}:
+           type: string
+
+Changes in 'rseqc/splitbam/main.nf':
+--- modules/nf-core/rseqc/splitbam/main.nf
++++ modules/nf-core/rseqc/splitbam/main.nf
+@@ -15,6 +15,7 @@
+     tuple val(meta), path("*.in.bam")  , emit: in_bam
+     tuple val(meta), path("*.ex.bam")  , emit: ex_bam
+     tuple val(meta), path("*.junk.bam"), emit: junk_bam
++    tuple val(meta), path("*.split_bam.txt"), emit: txt
+     tuple val("${task.process}"), val('rseqc'), eval('split_bam.py --version | sed "s/split_bam.py //"'), emit: versions_rseqc, topic: versions
+ 
+ 
+@@ -29,7 +30,8 @@
+         -i $bam \\
+         -r $bed \\
+         -o $prefix \\
+-        $args
++        $args \\
++        > ${prefix}.split_bam.txt
+     """
+ 
+     stub:
+@@ -38,5 +40,6 @@
+     touch ${prefix}.in.bam
+     touch ${prefix}.ex.bam
+     touch ${prefix}.junk.bam
++    touch ${prefix}.split_bam.txt
+     """
+ }
+
+'modules/nf-core/rseqc/splitbam/tests/main.nf.test.snap' is unchanged
+'modules/nf-core/rseqc/splitbam/tests/main.nf.test' is unchanged
+************************************************************

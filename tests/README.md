@@ -225,6 +225,38 @@ If you rename or remove tests, old snapshot entries remain in `.nf.test.snap` fi
 nf-test test --clean-snapshot
 ```
 
+## split_bam and featureCounts `-M` / `-O` tests
+
+These tests are kept in their own section and tags:
+
+| Tag                | Tests                                           | Tests matched |
+| ------------------ | ----------------------------------------------- | ------------- |
+| `split_bam`        | RSeQC `split_bam.py` (rRNA and synthetic BED12) | 5 tests       |
+| `featurecounts_mo` | featureCounts `-M`, `-O` and `-M -O`            | 12 tests      |
+
+| Tool                 | Regression method             | Crosscheck method                            | Crosscheck tolerance / notes                                       |
+| -------------------- | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------ |
+| **split_bam**        | `snapshot(lines)`             | **md5 hash** + `textMatch`                   | Byte-identical to `split_bam.py` stdout (rRNA and synthetic BED12) |
+| **featurecounts_mo** | `snapshot({counts, summary})` | Exact `tsvMatch` + `textMatch` + biotype map | Exact gene/biotype counts and summaries for `-M`, `-O`, `-M -O`    |
+
+`tests/rna/rustqc/split_bam.nf.test` and `featurecounts_mo.nf.test` load
+`tests/rna/rustqc/rustqc_extra_args.config`, which appends `params.rustqc_extra_args` (set in each
+test's `params` block) to the `RUSTQC_RNA` `ext.args` from `conf/modules.config`. The split_bam
+BED is staged next to the index in the input tuple's `bai` slot, so `--split-bam-bed` can name it
+by file name.
+
+split_bam and featureCounts `-M` / `-O` come from RustQC PR #191. Until it is merged and
+`ghcr.io/seqeralabs/rustqc:dev` is rebuilt, the RustQC tests for them fail on the default image.
+Run them against an image built from the PR with:
+
+```bash
+RUSTQC_IMAGE=<registry>/rustqc:<tag> nf-test test --tag split_bam
+RUSTQC_IMAGE=<registry>/rustqc:<tag> nf-test test --tag featurecounts_mo
+```
+
+The upstream references and how they were made are described in
+`snapshots/rna/small/rseqc/split_bam/README.md` and `snapshots/rna/small/featurecounts_mo/README.md`.
+
 ## CI / GitHub Actions
 
 Tests run automatically on pull requests via `.github/workflows/nf-test.yml`.

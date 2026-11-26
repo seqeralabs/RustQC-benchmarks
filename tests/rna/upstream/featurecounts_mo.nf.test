@@ -1,0 +1,258 @@
+nextflow_process {
+
+    name "Test upstream Subread featureCounts with -M / -O"
+    script "../../../modules/nf-core/subread/featurecounts/main.nf"
+    process "SUBREAD_FEATURECOUNTS"
+    config "./featurecounts_mo.config"
+
+    tag "upstream"
+    tag "rna"
+    tag "featurecounts"
+    tag "featurecounts_mo"
+    tag "small"
+
+    // featureCounts with -M (count multi-mapping alignments), -O (count reads
+    // for every overlapping feature) and both, each at gene level (-g gene_id)
+    // and biotype level (-g gene_biotype). strandedness 'reverse' (-s 2) matches
+    // the RustQC tests and the committed references in
+    // snapshots/rna/small/featurecounts_mo/<mode>/<attribute>/.
+    //
+    // Only Geneid, Length and the count are snapshotted: -M / -O change nothing
+    // but the counts, and the Chr/Start/End/Strand exon lists (over 1 MB per
+    // file) are already covered by the featurecounts and featurecounts_geneid
+    // upstream snapshots.
+
+    test("small dataset - upstream featureCounts -M gene_id") {
+
+        tag "featurecounts_mo_M"
+
+        when {
+            params {
+                featurecounts_mo_attribute = 'gene_id'
+                featurecounts_mo_args      = '-M'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def counts  = process.out.counts[0][1]
+            def summary = process.out.summary[0][1]
+            assert path(counts).exists()
+            assert path(summary).exists()
+
+            // Skip the "# Program:..." header (it embeds the featureCounts version)
+            snapshot(
+                "counts":  path(counts).readLines().findAll { !it.startsWith('#') }.collect {
+                    def f = it.split('\t', -1)
+                    [f[0], f[5], f[6]].join('\t')
+                },
+                "summary": path(summary).readLines()
+            ).match("featurecounts_M_gene_id_output")
+        }
+    }
+
+    test("small dataset - upstream featureCounts -M gene_biotype") {
+
+        tag "featurecounts_mo_M"
+
+        when {
+            params {
+                featurecounts_mo_attribute = 'gene_biotype'
+                featurecounts_mo_args      = '-M'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def counts  = process.out.counts[0][1]
+            def summary = process.out.summary[0][1]
+            assert path(counts).exists()
+            assert path(summary).exists()
+
+            // Skip the "# Program:..." header (it embeds the featureCounts version)
+            snapshot(
+                "counts":  path(counts).readLines().findAll { !it.startsWith('#') }.collect {
+                    def f = it.split('\t', -1)
+                    [f[0], f[5], f[6]].join('\t')
+                },
+                "summary": path(summary).readLines()
+            ).match("featurecounts_M_gene_biotype_output")
+        }
+    }
+
+    test("small dataset - upstream featureCounts -O gene_id") {
+
+        tag "featurecounts_mo_O"
+
+        when {
+            params {
+                featurecounts_mo_attribute = 'gene_id'
+                featurecounts_mo_args      = '-O'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def counts  = process.out.counts[0][1]
+            def summary = process.out.summary[0][1]
+            assert path(counts).exists()
+            assert path(summary).exists()
+
+            // Skip the "# Program:..." header (it embeds the featureCounts version)
+            snapshot(
+                "counts":  path(counts).readLines().findAll { !it.startsWith('#') }.collect {
+                    def f = it.split('\t', -1)
+                    [f[0], f[5], f[6]].join('\t')
+                },
+                "summary": path(summary).readLines()
+            ).match("featurecounts_O_gene_id_output")
+        }
+    }
+
+    test("small dataset - upstream featureCounts -O gene_biotype") {
+
+        tag "featurecounts_mo_O"
+
+        when {
+            params {
+                featurecounts_mo_attribute = 'gene_biotype'
+                featurecounts_mo_args      = '-O'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def counts  = process.out.counts[0][1]
+            def summary = process.out.summary[0][1]
+            assert path(counts).exists()
+            assert path(summary).exists()
+
+            // Skip the "# Program:..." header (it embeds the featureCounts version)
+            snapshot(
+                "counts":  path(counts).readLines().findAll { !it.startsWith('#') }.collect {
+                    def f = it.split('\t', -1)
+                    [f[0], f[5], f[6]].join('\t')
+                },
+                "summary": path(summary).readLines()
+            ).match("featurecounts_O_gene_biotype_output")
+        }
+    }
+
+    test("small dataset - upstream featureCounts -M -O gene_id") {
+
+        tag "featurecounts_mo_MO"
+
+        when {
+            params {
+                featurecounts_mo_attribute = 'gene_id'
+                featurecounts_mo_args      = '-M -O'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def counts  = process.out.counts[0][1]
+            def summary = process.out.summary[0][1]
+            assert path(counts).exists()
+            assert path(summary).exists()
+
+            // Skip the "# Program:..." header (it embeds the featureCounts version)
+            snapshot(
+                "counts":  path(counts).readLines().findAll { !it.startsWith('#') }.collect {
+                    def f = it.split('\t', -1)
+                    [f[0], f[5], f[6]].join('\t')
+                },
+                "summary": path(summary).readLines()
+            ).match("featurecounts_MO_gene_id_output")
+        }
+    }
+
+    test("small dataset - upstream featureCounts -M -O gene_biotype") {
+
+        tag "featurecounts_mo_MO"
+
+        when {
+            params {
+                featurecounts_mo_attribute = 'gene_biotype'
+                featurecounts_mo_args      = '-M -O'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def counts  = process.out.counts[0][1]
+            def summary = process.out.summary[0][1]
+            assert path(counts).exists()
+            assert path(summary).exists()
+
+            // Skip the "# Program:..." header (it embeds the featureCounts version)
+            snapshot(
+                "counts":  path(counts).readLines().findAll { !it.startsWith('#') }.collect {
+                    def f = it.split('\t', -1)
+                    [f[0], f[5], f[6]].join('\t')
+                },
+                "summary": path(summary).readLines()
+            ).match("featurecounts_MO_gene_biotype_output")
+        }
+    }
+}
