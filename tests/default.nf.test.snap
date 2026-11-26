@@ -6,7 +6,7 @@
                     "rustqc": "0.2.1"
                 },
                 "Workflow": {
-                    "seqeralabs/rustqc-benchmarks": "v1.0.0"
+                    "seqeralabs/rustqc-benchmarks": "v1.0.0dev"
                 }
             },
             [
@@ -257,12 +257,12 @@
                 "multiqc_citations.txt:md5,a1a0a7cb1b52eeb904d051a43bbb0ea5",
                 "multiqc_dupradar.txt:md5,f4dc472cb3ac39b97a56eea1b79eaaf0",
                 "multiqc_featurecounts_biotype_plot.txt:md5,ea0cfe2de7b7d3ab672418c98a2a26e7",
-                "multiqc_general_stats.txt:md5,1fd11baa1f1ebb91b43ad6c28f143d9d",
+                "multiqc_general_stats.txt:md5,bed949a0d6143b3b73af77c4ab4a9049",
                 "multiqc_rseqc_bam_stat_rseqc_rustqc.txt:md5,9777f1f35cd22134498cab16da41c3e1",
                 "multiqc_rseqc_infer_experiment_rseqc_rustqc.txt:md5,c2af4cb263e42a84112138b31583da89",
                 "multiqc_rseqc_junction_annotation_rseqc_rustqc.txt:md5,73324edd7c62c2bf13940226cb274f50",
                 "multiqc_rseqc_read_distribution_rseqc_rustqc.txt:md5,b193d698f75415cb0720439bf2875f2b",
-                "multiqc_rseqc_tin_rseqc_rustqc.txt:md5,d47d1ca23eb85b0b7d5408785708d80d",
+                "multiqc_rseqc_tin_rseqc_rustqc.txt:md5,1b9a23296614e23ed3046aa6a45bdfec",
                 "multiqc_samtools_flagstat_samtools_rustqc.txt:md5,7afd2524a088c38aa4e46462afe3ad13",
                 "multiqc_samtools_idxstats_samtools_rustqc.txt:md5,4447166758e67c7b3c1ca954522cb0dc",
                 "multiqc_samtools_stats_samtools_rustqc.txt:md5,1684429e5cf1764f07c8ee5daf71fb23",
@@ -392,7 +392,7 @@
                 "rustqc/featurecounts/test.featureCounts.tsv (without header)": "9b467df520c5339b8131cdd447794354"
             }
         ],
-        "timestamp": "2026-11-24T12:55:03.451515876",
+        "timestamp": "2026-11-26T12:11:06.656084125",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "25.04.0"
