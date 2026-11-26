@@ -15,6 +15,8 @@ lint:
     - .github/PULL_REQUEST_TEMPLATE.md
     - assets/email_template.txt
     - docs/README.md
+    # Actions pinned to commit SHAs; PR comments go through pr-comment.yml
+    - .github/workflows/linting.yml
   nextflow_config:
     - manifest.name
     - manifest.homePage
@@ -24,6 +26,8 @@ lint:
     - custom_config
     - params.custom_config_version
     - params.custom_config_base
+    # Inputs are --bam/--gtf, not a samplesheet
+    - params.input
   multiqc_config: false
   files_exist:
     - conf/igenomes.config
@@ -42,7 +46,21 @@ lint:
     - .github/workflows/awsfulltest.yml
     - .github/workflows/branch.yml
     - conf/igenomes.config
+    # Replaced by the shared pr-comment.yml poster (current template design)
+    - .github/workflows/linting_comment.yml
+    # Documentation lives in README.md
+    - .github/CONTRIBUTING.md
+    - docs/README.md
+    - docs/output.md
+    - docs/usage.md
   included_configs: false
+  # Binary BAM whose bytes happen to contain '{{' / '{%'
+  template_strings:
+    - test-data/rna/small/test.name_sorted.bam
+  # Qualimap's rnaseq_qc_results.txt uses 7-character '>' section headers, not merge markers
+  merge_markers:
+    - snapshots/rna/small/qualimap/rnaseq_qc_results.txt
+    - snapshots/rna/small/rustqc/qualimap/rnaseq_qc_results.txt
 
 template:
   org: seqeralabs
@@ -50,7 +68,7 @@ template:
   description: Benchmark suite for validating RustQC outputs against upstream bioinformatics
     tools
   author: Phil Ewels
-  version: 1.0.0dev
+  version: 1.0.0
   force: true
   outdir: /tmp/rustqc-benchmarks-scaffold
   skip_features:

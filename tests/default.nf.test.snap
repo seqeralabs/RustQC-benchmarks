@@ -6,7 +6,7 @@
                     "rustqc": "0.2.1"
                 },
                 "Workflow": {
-                    "seqeralabs/rustqc-benchmarks": "v1.0.0dev"
+                    "seqeralabs/rustqc-benchmarks": "v1.0.0"
                 }
             },
             [
