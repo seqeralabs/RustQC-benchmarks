@@ -20,6 +20,11 @@
                         "git_sha": "2c73cc8fa92cf48de3da0b643fdf357a8a290b36",
                         "installed_by": ["modules"]
                     },
+                    "picard/markduplicates": {
+                        "branch": "master",
+                        "git_sha": "867d17300172a04a28e3efe1817ca7188f7c3ee2",
+                        "installed_by": ["modules"]
+                    },
                     "preseq/lcextrap": {
                         "branch": "master",
                         "git_sha": "b80fa93d646109e3dc86e79010bf7c0b0af8ce29",
@@ -100,6 +105,16 @@
                     "samtools/stats": {
                         "branch": "master",
                         "git_sha": "fe93fde0845f907fc91ad7cc7d797930408824df",
+                        "installed_by": ["modules"]
+                    },
+                    "star/align": {
+                        "branch": "master",
+                        "git_sha": "867d17300172a04a28e3efe1817ca7188f7c3ee2",
+                        "installed_by": ["modules"]
+                    },
+                    "star/genomegenerate": {
+                        "branch": "master",
+                        "git_sha": "867d17300172a04a28e3efe1817ca7188f7c3ee2",
                         "installed_by": ["modules"]
                     },
                     "subread/featurecounts": {
