@@ -1,7 +1,7 @@
 # RustQC Benchmarks
 
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
-[![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.04.0-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D)](https://www.nextflow.io/)
+[![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.10.4-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D)](https://www.nextflow.io/)
 
 Validation suite for [RustQC](https://github.com/seqeralabs/RustQC) -- comparing its outputs against the upstream bioinformatics tools it reimplements.
 
@@ -92,7 +92,7 @@ conf/
 
 ## Prerequisites
 
-- [Nextflow](https://www.nextflow.io/) >= 25.04.0
+- [Nextflow](https://www.nextflow.io/) >= 25.10.4
 - [nf-test](https://www.nf-test.com) >= 0.9.2
 - Docker (or Singularity/Apptainer)
 
