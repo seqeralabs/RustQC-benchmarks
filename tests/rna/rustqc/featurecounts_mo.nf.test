@@ -33,7 +33,7 @@ nextflow_process {
         when {
             params {
                 skip_dup_check    = true
-                rustqc_extra_args = '-M'
+                rustqc_extra_args = '--count-multi-mapping'
             }
             process {
                 """
@@ -75,7 +75,7 @@ nextflow_process {
         when {
             params {
                 skip_dup_check    = true
-                rustqc_extra_args = '-M'
+                rustqc_extra_args = '--count-multi-mapping'
             }
             process {
                 """
@@ -148,7 +148,7 @@ nextflow_process {
         when {
             params {
                 skip_dup_check    = true
-                rustqc_extra_args = '-O'
+                rustqc_extra_args = '--count-multi-overlapping'
             }
             process {
                 """
@@ -190,7 +190,7 @@ nextflow_process {
         when {
             params {
                 skip_dup_check    = true
-                rustqc_extra_args = '-O'
+                rustqc_extra_args = '--count-multi-overlapping'
             }
             process {
                 """
@@ -263,7 +263,7 @@ nextflow_process {
         when {
             params {
                 skip_dup_check    = true
-                rustqc_extra_args = '-M -O'
+                rustqc_extra_args = '--count-multi-mapping --count-multi-overlapping'
             }
             process {
                 """
@@ -305,7 +305,7 @@ nextflow_process {
         when {
             params {
                 skip_dup_check    = true
-                rustqc_extra_args = '-M -O'
+                rustqc_extra_args = '--count-multi-mapping --count-multi-overlapping'
             }
             process {
                 """
