@@ -94,6 +94,16 @@ pipeline runs it with `-profile test`: reverse-stranded paired-end input (`stran
 from the GTF with `GTF2BED` where the BED's CDS (thickStart/thickEnd) matters (read_distribution). The reference file
 headers often record the command (e.g. `featureCounts ... -s 2`).
 
+#### Reference platform
+
+The TIN reference (`snapshots/rna/small/rseqc/tin/`) must be made, and the upstream TIN test run, on an
+x86-64 CPU with FMA and AVX2 (Intel Haswell / AMD Zen or newer) or on aarch64. `tin.py` takes `log()` and
+`exp()` from the C library, and glibc picks its FMA build of them on those CPUs. The generic build it uses
+on older x86-64 CPUs rounds differently in the last bit for about 1 in 10,000 inputs, which changes the
+last digit of roughly one TIN in a thousand. RustQC reproduces the FMA build's results on every platform,
+so the cross-check compares md5 sums. Do not set `GLIBC_TUNABLES` when regenerating the reference; on x86-64,
+check that `grep -o -w -e fma -e avx2 /proc/cpuinfo` lists both flags.
+
 ### Tag System
 
 Tests are tagged for selective execution:
