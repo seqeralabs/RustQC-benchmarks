@@ -28,9 +28,9 @@ runs:
         java-version: "21"
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
       with:
-        python-version: "3.14"
+        python-version: "3.15"
 
     - name: Install nf-test
       uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2.1.0
@@ -38,8 +38,25 @@ runs:
         version: "${{ env.NFT_VER }}"
         install-pdiff: true
 
+    # The unprivileged apptainer install downloads its dependencies from public Rocky/EPEL
+    # mirrors, which sometimes time out. Retry once (after clearing the partial install) so
+    # a mirror hiccup doesn't fail the job.
     - name: Setup apptainer
+      id: setup_apptainer
       if: contains(inputs.profile, 'singularity')
+      continue-on-error: true
+      uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087 # v3
+
+    - name: Clear partial apptainer install before retrying
+      if: contains(inputs.profile, 'singularity') && steps.setup_apptainer.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "::warning::apptainer install failed (likely a mirror timeout); retrying in 30s"
+        rm -rf "${RUNNER_TOOL_CACHE}/apptainer"
+        sleep 30
+
+    - name: Setup apptainer (retry)
+      if: contains(inputs.profile, 'singularity') && steps.setup_apptainer.outcome == 'failure'
       uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087 # v3
 
     - name: Set up Singularity
@@ -51,7 +68,7 @@ runs:
 
     - name: Conda setup
       if: contains(inputs.profile, 'conda')
-      uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
+      uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4.1.0
       with:
         auto-update-conda: true
         conda-solver: libmamba
