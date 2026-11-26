@@ -1,0 +1,371 @@
+nextflow_process {
+
+    name "Test RUSTQC featurecounts output with -M / -O"
+    script "../../../modules/local/rustqc_rna.nf"
+    process "RUSTQC_RNA"
+    config "./rustqc_extra_args.config"
+
+    tag "rustqc"
+    tag "rna"
+    tag "featurecounts"
+    tag "featurecounts_mo"
+    tag "small"
+
+    // featureCounts -M (--count-multi-mapping) and -O (--count-multi-overlapping)
+    // need RustQC PR #191 (see rustqc_extra_args.config for RUSTQC_IMAGE).
+    //
+    // The crosschecks are exact. With -M, -O or both, RustQC matches Subread
+    // featureCounts (-p -B -C -t exon -s 2) on the small dataset for:
+    //   - test.featureCounts.tsv                vs -g gene_id      (Geneid, Length, count)
+    //   - test.featureCounts.tsv.summary        vs -g gene_id      .summary
+    //   - test.featureCounts.biotype.tsv.summary vs -g gene_biotype .summary
+    //   - test.biotype_counts.tsv               vs -g gene_biotype (Geneid, count)
+    // Chr/Start/End/Strand are skipped in the per-gene file: they list the
+    // same exons but in a different order (as in featurecounts.nf.test).
+    // References: snapshots/rna/small/featurecounts_mo/<mode>/<attribute>/.
+
+    // ── Regression: -M ─────────────────────────────────────────
+    test("featurecounts -M - regression") {
+
+        tag "regression"
+        tag "featurecounts_mo_M"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--count-multi-mapping'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fcDir = "${process.out.results[0][1]}/featurecounts"
+            def files = [
+                biotype_counts:  "${fcDir}/test.biotype_counts.tsv",
+                summary:         "${fcDir}/test.featureCounts.tsv.summary",
+                biotype_summary: "${fcDir}/test.featureCounts.biotype.tsv.summary",
+            ]
+            files.each { name, f -> assert path(f).exists() : "${name} not found: ${f}" }
+
+            snapshot(
+                biotype_counts:  path(files.biotype_counts).readLines(),
+                summary:         path(files.summary).readLines(),
+                biotype_summary: path(files.biotype_summary).readLines()
+            ).match("featurecounts_M_regression")
+        }
+    }
+
+    // ── Crosscheck: -M vs featureCounts -M (exact) ─────────
+    test("featurecounts -M - crosscheck vs upstream") {
+
+        tag "crosscheck"
+        tag "featurecounts_mo_M"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--count-multi-mapping'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fcDir      = "${process.out.results[0][1]}/featurecounts"
+            def geneRef    = "${projectDir}/snapshots/rna/small/featurecounts_mo/M/gene_id"
+            def biotypeRef = "${projectDir}/snapshots/rna/small/featurecounts_mo/M/gene_biotype"
+
+            // ── Gene level ────────────────────────────────────────────────
+            // Geneid, Length and count must be identical, row for row
+            CompareUtils.tsvMatch(
+                path("${fcDir}/test.featureCounts.tsv").readLines(),
+                path("${geneRef}/test.featureCounts.tsv").readLines(),
+                [
+                    skipColumns:  [1, 2, 3, 4] as Set,  // Chr/Start/End/Strand exon lists
+                    skipPrefixes: ['#'],                // "# Program:..." header line
+                ]
+            )
+            CompareUtils.textMatch(
+                path("${fcDir}/test.featureCounts.tsv.summary").readLines(),
+                path("${geneRef}/test.featureCounts.tsv.summary").readLines()
+            )
+
+            // ── Biotype level ─────────────────────────────────────────────
+            CompareUtils.textMatch(
+                path("${fcDir}/test.featureCounts.biotype.tsv.summary").readLines(),
+                path("${biotypeRef}/test.featureCounts.tsv.summary").readLines()
+            )
+
+            // RustQC: Biotype\tCount; upstream -g gene_biotype: col 1 (biotype), col 7 (count)
+            def actualBiotypes = [:]
+            path("${fcDir}/test.biotype_counts.tsv").readLines().each { line ->
+                if (line.startsWith('Biotype')) return
+                def parts = line.split('\t')
+                actualBiotypes[parts[0]] = parts[1].trim() as Long
+            }
+            def expectedBiotypes = [:]
+            path("${biotypeRef}/test.featureCounts.tsv").readLines().each { line ->
+                if (line.startsWith('#') || line.startsWith('Geneid')) return
+                def parts = line.split('\t')
+                expectedBiotypes[parts[0]] = parts[6].trim() as Long
+            }
+            assert actualBiotypes.keySet().sort() == expectedBiotypes.keySet().sort() : \
+                "Biotype sets differ: RustQC=${actualBiotypes.keySet().sort()} upstream=${expectedBiotypes.keySet().sort()}"
+            def mismatches = expectedBiotypes.findAll { k, v -> actualBiotypes[k] != v }.collect { k, v ->
+                "${k}: RustQC=${actualBiotypes[k]} upstream=${v}"
+            }
+            assert !mismatches : "Per-biotype counts differ:\n  " + mismatches.join('\n  ')
+        }
+    }
+
+    // ── Regression: -O ─────────────────────────────────────────
+    test("featurecounts -O - regression") {
+
+        tag "regression"
+        tag "featurecounts_mo_O"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--count-multi-overlapping'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fcDir = "${process.out.results[0][1]}/featurecounts"
+            def files = [
+                biotype_counts:  "${fcDir}/test.biotype_counts.tsv",
+                summary:         "${fcDir}/test.featureCounts.tsv.summary",
+                biotype_summary: "${fcDir}/test.featureCounts.biotype.tsv.summary",
+            ]
+            files.each { name, f -> assert path(f).exists() : "${name} not found: ${f}" }
+
+            snapshot(
+                biotype_counts:  path(files.biotype_counts).readLines(),
+                summary:         path(files.summary).readLines(),
+                biotype_summary: path(files.biotype_summary).readLines()
+            ).match("featurecounts_O_regression")
+        }
+    }
+
+    // ── Crosscheck: -O vs featureCounts -O (exact) ─────────
+    test("featurecounts -O - crosscheck vs upstream") {
+
+        tag "crosscheck"
+        tag "featurecounts_mo_O"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--count-multi-overlapping'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fcDir      = "${process.out.results[0][1]}/featurecounts"
+            def geneRef    = "${projectDir}/snapshots/rna/small/featurecounts_mo/O/gene_id"
+            def biotypeRef = "${projectDir}/snapshots/rna/small/featurecounts_mo/O/gene_biotype"
+
+            // ── Gene level ────────────────────────────────────────────────
+            // Geneid, Length and count must be identical, row for row
+            CompareUtils.tsvMatch(
+                path("${fcDir}/test.featureCounts.tsv").readLines(),
+                path("${geneRef}/test.featureCounts.tsv").readLines(),
+                [
+                    skipColumns:  [1, 2, 3, 4] as Set,  // Chr/Start/End/Strand exon lists
+                    skipPrefixes: ['#'],                // "# Program:..." header line
+                ]
+            )
+            CompareUtils.textMatch(
+                path("${fcDir}/test.featureCounts.tsv.summary").readLines(),
+                path("${geneRef}/test.featureCounts.tsv.summary").readLines()
+            )
+
+            // ── Biotype level ─────────────────────────────────────────────
+            CompareUtils.textMatch(
+                path("${fcDir}/test.featureCounts.biotype.tsv.summary").readLines(),
+                path("${biotypeRef}/test.featureCounts.tsv.summary").readLines()
+            )
+
+            // RustQC: Biotype\tCount; upstream -g gene_biotype: col 1 (biotype), col 7 (count)
+            def actualBiotypes = [:]
+            path("${fcDir}/test.biotype_counts.tsv").readLines().each { line ->
+                if (line.startsWith('Biotype')) return
+                def parts = line.split('\t')
+                actualBiotypes[parts[0]] = parts[1].trim() as Long
+            }
+            def expectedBiotypes = [:]
+            path("${biotypeRef}/test.featureCounts.tsv").readLines().each { line ->
+                if (line.startsWith('#') || line.startsWith('Geneid')) return
+                def parts = line.split('\t')
+                expectedBiotypes[parts[0]] = parts[6].trim() as Long
+            }
+            assert actualBiotypes.keySet().sort() == expectedBiotypes.keySet().sort() : \
+                "Biotype sets differ: RustQC=${actualBiotypes.keySet().sort()} upstream=${expectedBiotypes.keySet().sort()}"
+            def mismatches = expectedBiotypes.findAll { k, v -> actualBiotypes[k] != v }.collect { k, v ->
+                "${k}: RustQC=${actualBiotypes[k]} upstream=${v}"
+            }
+            assert !mismatches : "Per-biotype counts differ:\n  " + mismatches.join('\n  ')
+        }
+    }
+
+    // ── Regression: -M -O ─────────────────────────────────────────
+    test("featurecounts -M -O - regression") {
+
+        tag "regression"
+        tag "featurecounts_mo_MO"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--count-multi-mapping --count-multi-overlapping'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fcDir = "${process.out.results[0][1]}/featurecounts"
+            def files = [
+                biotype_counts:  "${fcDir}/test.biotype_counts.tsv",
+                summary:         "${fcDir}/test.featureCounts.tsv.summary",
+                biotype_summary: "${fcDir}/test.featureCounts.biotype.tsv.summary",
+            ]
+            files.each { name, f -> assert path(f).exists() : "${name} not found: ${f}" }
+
+            snapshot(
+                biotype_counts:  path(files.biotype_counts).readLines(),
+                summary:         path(files.summary).readLines(),
+                biotype_summary: path(files.biotype_summary).readLines()
+            ).match("featurecounts_MO_regression")
+        }
+    }
+
+    // ── Crosscheck: -M -O vs featureCounts -M -O (exact) ─────────
+    test("featurecounts -M -O - crosscheck vs upstream") {
+
+        tag "crosscheck"
+        tag "featurecounts_mo_MO"
+
+        when {
+            params {
+                skip_dup_check    = true
+                rustqc_extra_args = '--count-multi-mapping --count-multi-overlapping'
+            }
+            process {
+                """
+                input[0] = Channel.of([
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
+                    file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
+                    file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.gtf.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fcDir      = "${process.out.results[0][1]}/featurecounts"
+            def geneRef    = "${projectDir}/snapshots/rna/small/featurecounts_mo/MO/gene_id"
+            def biotypeRef = "${projectDir}/snapshots/rna/small/featurecounts_mo/MO/gene_biotype"
+
+            // ── Gene level ────────────────────────────────────────────────
+            // Geneid, Length and count must be identical, row for row
+            CompareUtils.tsvMatch(
+                path("${fcDir}/test.featureCounts.tsv").readLines(),
+                path("${geneRef}/test.featureCounts.tsv").readLines(),
+                [
+                    skipColumns:  [1, 2, 3, 4] as Set,  // Chr/Start/End/Strand exon lists
+                    skipPrefixes: ['#'],                // "# Program:..." header line
+                ]
+            )
+            CompareUtils.textMatch(
+                path("${fcDir}/test.featureCounts.tsv.summary").readLines(),
+                path("${geneRef}/test.featureCounts.tsv.summary").readLines()
+            )
+
+            // ── Biotype level ─────────────────────────────────────────────
+            CompareUtils.textMatch(
+                path("${fcDir}/test.featureCounts.biotype.tsv.summary").readLines(),
+                path("${biotypeRef}/test.featureCounts.tsv.summary").readLines()
+            )
+
+            // RustQC: Biotype\tCount; upstream -g gene_biotype: col 1 (biotype), col 7 (count)
+            def actualBiotypes = [:]
+            path("${fcDir}/test.biotype_counts.tsv").readLines().each { line ->
+                if (line.startsWith('Biotype')) return
+                def parts = line.split('\t')
+                actualBiotypes[parts[0]] = parts[1].trim() as Long
+            }
+            def expectedBiotypes = [:]
+            path("${biotypeRef}/test.featureCounts.tsv").readLines().each { line ->
+                if (line.startsWith('#') || line.startsWith('Geneid')) return
+                def parts = line.split('\t')
+                expectedBiotypes[parts[0]] = parts[6].trim() as Long
+            }
+            assert actualBiotypes.keySet().sort() == expectedBiotypes.keySet().sort() : \
+                "Biotype sets differ: RustQC=${actualBiotypes.keySet().sort()} upstream=${expectedBiotypes.keySet().sort()}"
+            def mismatches = expectedBiotypes.findAll { k, v -> actualBiotypes[k] != v }.collect { k, v ->
+                "${k}: RustQC=${actualBiotypes[k]} upstream=${v}"
+            }
+            assert !mismatches : "Per-biotype counts differ:\n  " + mismatches.join('\n  ')
+        }
+    }
+}

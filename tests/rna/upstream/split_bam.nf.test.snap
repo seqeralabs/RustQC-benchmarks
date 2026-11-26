@@ -1,0 +1,32 @@
+{
+    "split_bam_synthetic_output": {
+        "content": [
+            [
+                "Total records:                                         52839",
+                "test.in.bam (Alignments consumed by input gene list):  9114",
+                "test.ex.bam (Alignments not consumed by input gene list):43725",
+                "test.junk.bam (qcfailed, unmapped reads):              0"
+            ]
+        ],
+        "timestamp": "2026-11-24T14:15:07.101929",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.10.0"
+        }
+    },
+    "split_bam_rrna_output": {
+        "content": [
+            [
+                "Total records:                                         52839",
+                "test.in.bam (Alignments consumed by input gene list):  0",
+                "test.ex.bam (Alignments not consumed by input gene list):52839",
+                "test.junk.bam (qcfailed, unmapped reads):              0"
+            ]
+        ],
+        "timestamp": "2026-11-24T14:15:03.803969",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.10.0"
+        }
+    }
+}

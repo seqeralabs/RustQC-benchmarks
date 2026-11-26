@@ -1,0 +1,4 @@
+Total records:                                         52839
+test.in.bam (Alignments consumed by input gene list):  0
+test.ex.bam (Alignments not consumed by input gene list):52839
+test.junk.bam (qcfailed, unmapped reads):              0
