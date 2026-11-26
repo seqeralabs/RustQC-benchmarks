@@ -31,7 +31,6 @@ include { RSEQC_INNERDISTANCE                     } from '../modules/nf-core/rse
 include { RSEQC_TIN                               } from '../modules/nf-core/rseqc/tin/main'
 include { SAMTOOLS_FLAGSTAT                       } from '../modules/nf-core/samtools/flagstat/main'
 include { SAMTOOLS_IDXSTATS                       } from '../modules/nf-core/samtools/idxstats/main'
-include { SAMTOOLS_INDEX                          } from '../modules/nf-core/samtools/index/main'
 include { SAMTOOLS_SORT as SAMTOOLS_SORT_QUALIMAP } from '../modules/nf-core/samtools/sort/main'
 include { SAMTOOLS_STATS                          } from '../modules/nf-core/samtools/stats/main'
 
@@ -41,49 +40,37 @@ include { SAMTOOLS_STATS                          } from '../modules/nf-core/sam
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
+/*
+ * Runs RustQC (and, with --run_upstream, the upstream reference tools) on one BAM.
+ *
+ * Called by main.nf with the BAM and GTF of --bam/--gtf, and by workflows/fullsize.nf with the
+ * BAM it aligned (or restored from the cache).
+ */
 workflow RUSTQC_BENCHMARKS {
+
+    take:
+    ch_bam_bai  // value channel: [ meta, bam, bai ]
+    ch_gtf      // value channel: annotation GTF (plain or .gz)
 
     main:
 
-    //
-    // Build input channels from params
-    //
-    def meta = [
-        id:            params.sample_id ?: file(params.bam).baseName,
-        single_end:    !params.paired,
-        strandedness:  params.strandedness ?: 'unstranded',
-    ]
-
-    def bam_file = file(params.bam, checkIfExists: true)
-    def bai_file = params.bai ? file(params.bai, checkIfExists: true) : null
-    def gtf_file = file(params.gtf, checkIfExists: true)
-
     ch_versions       = channel.empty()
     ch_multiqc_files  = channel.empty()
-    ch_bam = channel.value([ meta, bam_file ])
-
-    //
-    // Index the BAM if no BAI provided
-    //
-    if (bai_file) {
-        ch_bam_bai = channel.value([ meta, bam_file, bai_file ])
-    } else {
-        SAMTOOLS_INDEX(ch_bam)
-        ch_bam_bai = ch_bam
-            .combine(SAMTOOLS_INDEX.out.bai.map{ m, bai -> bai })
-            .map{ m, bam, bai -> [ m, bam, bai ] }
-    }
+    ch_bam            = ch_bam_bai.map{ meta, bam, _bai -> [ meta, bam ] }
+    ch_upstream_refs  = channel.empty()
 
     //
     // MODULE: RustQC RNA (single-pass, all tools)
     //
+    ch_rustqc_results = channel.empty()
     if (params.run_rustqc) {
         RUSTQC_RNA(
             ch_bam_bai,
-            gtf_file,
+            ch_gtf,
         )
-        ch_versions      = ch_versions.mix(RUSTQC_RNA.out.versions)
-        ch_multiqc_files = ch_multiqc_files.mix(RUSTQC_RNA.out.results.map{ _meta, dir -> dir })
+        ch_rustqc_results = RUSTQC_RNA.out.results
+        ch_versions       = ch_versions.mix(RUSTQC_RNA.out.versions)
+        ch_multiqc_files  = ch_multiqc_files.mix(RUSTQC_RNA.out.results.map{ _meta, dir -> dir })
     }
 
     //
@@ -94,12 +81,14 @@ workflow RUSTQC_BENCHMARKS {
         //
         // Decompress GTF if gzipped (needed by Qualimap and GTF2BED below)
         //
-        if (gtf_file.toString().endsWith('.gz')) {
-            GUNZIP_GTF(channel.value([ [:], gtf_file ]))
-            ch_plain_gtf = GUNZIP_GTF.out.gunzip  // tuple(meta, gtf)
-        } else {
-            ch_plain_gtf = channel.value([ [:], gtf_file ])
+        ch_gtf_by_type = ch_gtf.branch { gtf ->
+            gzipped: gtf.name.endsWith('.gz')
+            plain:   true
         }
+        GUNZIP_GTF(ch_gtf_by_type.gzipped.map{ gtf -> [ [:], gtf ] })
+        ch_plain_gtf = ch_gtf_by_type.plain.map{ gtf -> [ [:], gtf ] }
+            .mix(GUNZIP_GTF.out.gunzip)  // tuple(meta, gtf)
+            .first()
 
         // Tools that only need BAM (no GTF/BED/BAI required)
         //
@@ -119,20 +108,20 @@ workflow RUSTQC_BENCHMARKS {
         SAMTOOLS_IDXSTATS(ch_bam_bai)
 
         // samtools stats: needs tuple(meta, bam, bai) + tuple(meta, fasta) — fasta optional
-        SAMTOOLS_STATS(ch_bam_bai, channel.value([ meta, [] ]))
+        SAMTOOLS_STATS(ch_bam_bai, ch_bam.map{ meta, _bam -> [ meta, [] ] })
 
         // Tools that require GTF annotation
         //
 
         // dupRadar: tuple(meta, bam) + tuple(meta, gtf)
-        DUPRADAR(ch_bam, channel.value([ meta, gtf_file ]))
+        DUPRADAR(ch_bam, ch_bam.combine(ch_gtf).map{ meta, _bam, gtf -> [ meta, gtf ] })
         ch_versions = ch_versions.mix(DUPRADAR.out.versions)
 
         // featureCounts: tuple(meta, bams, annotation) — all in one tuple
         // Biotype-level grouping (-g gene_biotype) for biotype QC comparison
-        SUBREAD_FEATURECOUNTS(channel.value([ meta, bam_file, gtf_file ]))
+        SUBREAD_FEATURECOUNTS(ch_bam.combine(ch_gtf))
         // Per-gene grouping (-g gene_id) for gene-level count comparison with RustQC
-        SUBREAD_FEATURECOUNTS_GENEID(channel.value([ meta, bam_file, gtf_file ]))
+        SUBREAD_FEATURECOUNTS_GENEID(ch_bam.combine(ch_gtf))
 
         // Qualimap: name-sort BAM, then run qualimap rnaseq
         // Mirrors nf-core/rnaseq: GUNZIP_GTF -> SAMTOOLS_SORT_QUALIMAP -> QUALIMAP_RNASEQ
@@ -180,6 +169,27 @@ workflow RUSTQC_BENCHMARKS {
         ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONANNOTATION.out.log.collect{ _meta, f -> f })
         ch_multiqc_files = ch_multiqc_files.mix(RSEQC_JUNCTIONSATURATION.out.rscript.collect{ _meta, f -> f })
         ch_multiqc_files = ch_multiqc_files.mix(RSEQC_INNERDISTANCE.out.freq.collect{ _meta, f -> f })
+
+        //
+        // Upstream outputs that the full-size comparison reads (tests/lib/checks: each tool's
+        // `references`), as plain files. Their names are unique, so they can be staged flat.
+        //
+        ch_upstream_refs = channel.empty()
+            .mix(DUPRADAR.out.dupmatrix)
+            .mix(DUPRADAR.out.intercept_slope)
+            .mix(SUBREAD_FEATURECOUNTS_GENEID.out.counts)
+            .mix(SUBREAD_FEATURECOUNTS_GENEID.out.summary)
+            .mix(RSEQC_BAMSTAT.out.txt)
+            .mix(RSEQC_INFEREXPERIMENT.out.txt)
+            .mix(RSEQC_READDISTRIBUTION.out.txt)
+            .mix(RSEQC_READDUPLICATION.out.pos_xls)
+            .mix(RSEQC_READDUPLICATION.out.seq_xls)
+            .mix(RSEQC_JUNCTIONANNOTATION.out.bed)
+            .mix(RSEQC_JUNCTIONANNOTATION.out.xls)
+            .mix(SAMTOOLS_FLAGSTAT.out.flagstat)
+            .mix(SAMTOOLS_IDXSTATS.out.idxstats)
+            .mix(SAMTOOLS_STATS.out.stats)
+            .map{ _meta, f -> f }
     }
 
     //
@@ -222,6 +232,8 @@ workflow RUSTQC_BENCHMARKS {
     emit:
     multiqc_report = MULTIQC.out.report
     versions       = ch_versions
+    rustqc_results = ch_rustqc_results   // [ meta, rustqc/ ]
+    upstream_refs  = ch_upstream_refs    // files (empty without --run_upstream)
 }
 
 /*

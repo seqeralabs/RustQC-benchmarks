@@ -42,3 +42,6 @@ testing*
 
 # Test data downloaded by tests/fetch_testdata.py in CI (RUSTQC_TESTDATA_DIR)
 .testdata/
+
+# Full-size run: references written by its comparison (workflows/fullsize.nf)
+.fullsize/

@@ -14,9 +14,12 @@
 # Per-dataset keys
 #   class       content (has its own upstream references) | equivalence | option (later phases)
 #   set         small (default: runs on every PR) | large (runs on main, releases and on demand;
-#               see tests/DATASETS.md). The set is also an nf-test tag.
+#               see tests/DATASETS.md) | fullsize (not run by nf-test: the full-size run on
+#               Seqera Platform and its smoke test, see tests/DATASETS.md#full-size-tier). The set
+#               is also an nf-test tag.
 #   sample      RustQC --sample-name, i.e. the output file prefix (default: the dataset id)
-#   meta        the [meta] map passed to RUSTQC_RNA: single_end, strandedness
+#   meta        the [meta] map passed to RUSTQC_RNA: single_end, strandedness (`auto`, full-size
+#               datasets: inferred from the BAM they are aligned to)
 #   rustqc      RUSTQC_RNA params: skip_dup_check, biotype_attribute, rustqc_config
 #   references  dir:      upstream reference outputs, relative to the repository root
 #               bam_name: basename of the BAM the references were generated from. Outputs that
@@ -34,6 +37,11 @@ sources:
   nfcore_modules: https://raw.githubusercontent.com/nf-core/test-datasets/65d3096343daeb3ae88795314c481d15b89284c5/data
   # nf-core/test-datasets `rnasplice` branch, pinned by commit SHA (branch head on 2026-11-25).
   nfcore_rnasplice: https://raw.githubusercontent.com/nf-core/test-datasets/15ee35f8b36259b4b25c28ad5df6efa07e58b2a5
+  # Public anonymous bucket (s3://ngi-igenomes/test-data/oncoanalyser/) that the nf-core/oncoanalyser
+  # full-size test reads, over https. Objects were last modified on 2026-08-26.
+  oncoanalyser_s3: https://ngi-igenomes.s3.amazonaws.com/test-data/oncoanalyser
+  # Ensembl release 111 (archived, immutable)
+  ensembl_111: https://ftp.ensembl.org/pub/release-111
 
 # RustQC release-regression check (tests/rna/regression/release.nf.test): the current RustQC
 # (params.rustqc_image) and the baseline release below run on every dataset and their outputs
@@ -297,3 +305,87 @@ datasets:
       dir: snapshots/rna/hs_ribo_chr20_se_fwd
     expect: {}
     tags: [se, forward, ensembl, grch38, riboseq, short_reads, multimappers, full_chromosome]
+
+  # Full-size tier (tests/DATASETS.md#full-size-tier). Not run by nf-test: `nextflow run . --fullsize`
+  # (workflows/fullsize.nf) makes the BAM from the FASTQ (STAR two-pass + Picard MarkDuplicates,
+  # the nf-core/rnaseq way), runs RustQC and the upstream tools on it and compares them with the
+  # checks library, using this entry for the sample name, the per-tool `expect:` and the input
+  # URLs (`tests/fetch_testdata.py --params-json <id>` prints them as pipeline parameters). The
+  # BAM is produced, not downloaded: `bam`/`bai` only name it. No committed references: the
+  # upstream tools run on that very BAM.
+  - id: hs_hcc1395_wts_fullsize
+    class: content
+    set: fullsize
+    description: >-
+      HCC1395 tumour whole-transcriptome RNA-seq (SRR892423, subsampled), 60,810,068 read pairs
+      of 2x100 bp, the RNA sample of the nf-core/oncoanalyser full-size test
+      (nf-core/test-datasets branch `oncoanalyser`, commit 7696fe5115b443508385bcc2cad88bc343d1e12b,
+      samplesheet/full_size.hcc1395.wgts.tndna_trna.fastq.csv). Aligned to Ensembl 111 GRCh38 with
+      STAR (two-pass, nf-core/rnaseq arguments), Picard-marked duplicates. 63,241 annotated genes.
+    sample: HCC1395_tumour_wts
+    inputs:
+      bam:
+        local: .fullsize/HCC1395_tumour_wts.markdup.sorted.bam
+      bai:
+        local: .fullsize/HCC1395_tumour_wts.markdup.sorted.bam.bai
+      # Inputs of the alignment
+      fastq_1:
+        url: "{oncoanalyser_s3}/HCC1395__tumour_wts__2891075264__SRR892423__subsampled.1.fastq.gz"
+        md5: 9da014622e8157a3c4e58295e7a9b28b # 4,937,006,400 bytes
+      fastq_2:
+        url: "{oncoanalyser_s3}/HCC1395__tumour_wts__2891075264__SRR892423__subsampled.2.fastq.gz"
+        md5: 723c6c22fad1684dcb3696603069a098 # 4,947,174,553 bytes
+      fasta:
+        url: "{ensembl_111}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
+        md5: 1c8c1d3ebfa7e615cd9ac2cf00853423 # 881,964,081 bytes
+      gtf:
+        url: "{ensembl_111}/gtf/homo_sapiens/Homo_sapiens.GRCh38.111.gtf.gz"
+        md5: 5c84c3bf96434f72aa931650d12dec10 # 54,350,257 bytes
+    meta:
+      single_end: false
+      strandedness: auto
+    references:
+      # Written by the comparison from the upstream tools' outputs of the same run (not committed)
+      dir: .fullsize/references/hs_hcc1395_wts_fullsize
+    # No `expect:` entries: every converted tool is crosschecked. The upstream tools without a
+    # check yet (TIN, Qualimap, ...) are skipped at this size (conf/fullsize.config).
+    tags: [pe, hs, grch38, ensembl111, markdup]
+
+  # Smoke test of the full-size run: the same pipeline on a 40 kb chr22 slice (nf-core test data),
+  # in a few minutes. `nextflow run . --fullsize -profile <docker|conda>,fullsize` with
+  # `tests/fetch_testdata.py --params-json hs_chr22_wts_smoke` and the small machine size
+  # `--fullsize_max_cpus 4 --fullsize_max_memory 12.GB` (tests/DATASETS.md#full-size-tier).
+  - id: hs_chr22_wts_smoke
+    class: content
+    set: fullsize
+    description: >-
+      nf-core test_rnaseq paired-end reads on its 40 kb chr22 test genome. Only exercises the
+      pipeline path; the numbers mean nothing.
+    sample: smoke
+    inputs:
+      bam:
+        local: .fullsize/smoke.markdup.sorted.bam
+      bai:
+        local: .fullsize/smoke.markdup.sorted.bam.bai
+      fastq_1:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/fastq/test_rnaseq_1.fastq.gz"
+        md5: 56978da7d59a916dd8982fdf4492ef56
+      fastq_2:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/fastq/test_rnaseq_2.fastq.gz"
+        md5: 4a89f346e26942de7c481b03f2ce3c02
+      fasta:
+        url: "{nfcore_modules}/genomics/homo_sapiens/genome/genome.fasta"
+        md5: f315020d899597c1b57e5fe9f60f4c3e
+      gtf:
+        url: "{nfcore_modules}/genomics/homo_sapiens/genome/genome.gtf"
+        md5: 50fc877b1c53b36b3b413aff88bda48c
+    meta:
+      single_end: false
+      strandedness: auto
+    references:
+      dir: .fullsize/references/hs_chr22_wts_smoke
+    # A degenerate dupRadar fit on a 40 kb genome: the slope differs from R's, as documented for
+    # the small datasets (tests/DATASETS.md)
+    expect:
+      dupradar: regression
+    tags: [pe, hs, grch38, smoke]

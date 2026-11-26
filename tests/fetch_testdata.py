@@ -17,6 +17,7 @@ Needs PyYAML.
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import sys
@@ -27,7 +28,8 @@ from pathlib import Path
 import yaml
 
 MANIFEST = Path(__file__).resolve().parent / "datasets.yml"
-SETS = ("small", "large")
+SETS = ("small", "large", "fullsize")
+ALL_SETS = ("small", "large")  # what `--sets all` means; the fullsize set is only fetched by name
 
 
 def md5sum(path):
@@ -80,18 +82,66 @@ def download(url, target, retries=3):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--out", required=True, help="directory to download into")
-    p.add_argument("--sets", default="small", help="comma-separated test sets (small, large) or 'all' [small]")
+    p.add_argument("--out", help="directory to download into (required unless --fingerprint or --params-json)")
+    p.add_argument("--sets", default="small", help="comma-separated test sets (small, large, fullsize) or 'all' (small + large) [small]")
     p.add_argument("--datasets", default="", help="comma-separated dataset ids (default: every dataset of --sets)")
+    p.add_argument("--inputs", default="", help="comma-separated input names (bam, fastq_1, gtf, ...) to handle (default: all)")
+    p.add_argument(
+        "--fingerprint",
+        action="store_true",
+        help="print a hash of the (selected) inputs of the selected datasets, URLs and md5s, and exit: "
+        "the cache key of data derived from them (the full-size BAM and STAR index), which so changes "
+        "only when those inputs do, not with the rest of the manifest",
+    )
+    p.add_argument(
+        "--params-json",
+        metavar="DATASET",
+        help="print the parameters of the full-size run (`nextflow run . --fullsize`) for this dataset as JSON, "
+        "and exit: sample_id, dataset, fastq_1, fastq_2, fasta and gtf. Inputs are their URLs, except that the "
+        "public nf-core/oncoanalyser bucket is given as s3://, which Nextflow stages without going through the head job",
+    )
     args = p.parse_args()
+    if not (args.fingerprint or args.params_json) and not args.out:
+        p.error("--out is required")
 
     manifest = yaml.safe_load(MANIFEST.read_text())
     sources = manifest.get("sources") or {}
-    sets = set(SETS) if args.sets == "all" else {s.strip() for s in args.sets.split(",") if s.strip()}
+    sets = set(ALL_SETS) if args.sets == "all" else {s.strip() for s in args.sets.split(",") if s.strip()}
     unknown = sets - set(SETS)
     if unknown:
         p.error(f"unknown sets {sorted(unknown)}; known: {', '.join(SETS)} or all")
     wanted = {d.strip() for d in args.datasets.split(",") if d.strip()}
+    inputs_wanted = {i.strip() for i in args.inputs.split(",") if i.strip()}
+
+    if args.params_json:
+        ds = next((d for d in manifest.get("datasets") or [] if d["id"] == args.params_json), None)
+        if ds is None:
+            p.error(f"unknown dataset {args.params_json}")
+        params = {"dataset": ds["id"], "sample_id": ds.get("sample", ds["id"])}
+        for name in ("fastq_1", "fastq_2", "fasta", "gtf"):
+            spec = (ds.get("inputs") or {}).get(name)
+            spec = spec if isinstance(spec, dict) else {"url": spec}
+            if not spec.get("url"):
+                p.error(f"dataset {ds['id']} has no downloadable input {name}")
+            url = expand(spec["url"], sources)
+            params[name] = re.sub(r"^https://([a-z0-9.-]+)\.s3\.amazonaws\.com/", r"s3://\1/", url)
+        print(json.dumps(params, indent=2))
+        return
+
+    if args.fingerprint:
+        selected = []
+        for ds in manifest.get("datasets") or []:
+            if ds.get("set", "small") not in sets or (wanted and ds["id"] not in wanted):
+                continue
+            inputs = {}
+            for name, spec in (ds.get("inputs") or {}).items():
+                if inputs_wanted and name not in inputs_wanted:
+                    continue
+                spec = spec if isinstance(spec, dict) else {"url": spec}
+                inputs[name] = {**spec, **({"url": expand(spec["url"], sources)} if spec.get("url") else {})}
+            selected.append({"id": ds["id"], "inputs": inputs})
+        print(hashlib.sha256(json.dumps(selected, sort_keys=True).encode()).hexdigest())
+        return
 
     out = Path(args.out).expanduser().resolve()
     failures = []
@@ -100,6 +150,8 @@ def main():
         if ds.get("set", "small") not in sets or (wanted and ds["id"] not in wanted):
             continue
         for name, spec in (ds.get("inputs") or {}).items():
+            if inputs_wanted and name not in inputs_wanted:
+                continue
             spec = spec if isinstance(spec, dict) else {"url": spec}
             if not spec.get("url"):
                 continue  # in-repo only

@@ -256,3 +256,77 @@ back to the nf-core URL, so a failed download job or a cache miss only makes the
 
 GitHub-hosted runners limit `actions/cache` to 10 GB per repository (older entries are evicted
 first), which is enough for the manifest's inputs. A cache miss only costs the download.
+
+## Full-size tier
+
+One dataset, `hs_hcc1395_wts_fullsize` (set `fullsize`), checks RustQC at the size of a real
+whole-transcriptome sample: the HCC1395 tumour RNA-seq of nf-core/oncoanalyser's full-size test
+(60,810,068 read pairs of 2x100 bp, two 4.9 GB FASTQ files in the public bucket
+`s3://ngi-igenomes/test-data/oncoanalyser/`, md5-pinned in `tests/datasets.yml`). It does not run in
+nf-test and not on GitHub-hosted runners: it is a Nextflow run on **Seqera Platform**, launched
+by hand before each RustQC release from `.github/workflows/fullsize-seqera.yml`
+(`seqeralabs/action-tower-launch`, as the nf-core full-size tests do). That workflow never runs on
+pull requests or forks and only in `seqeralabs/RustQC-benchmarks`.
+
+`nextflow run . --fullsize -profile fullsize` (`workflows/fullsize.nf`):
+
+```
+FASTQ + Ensembl 111 GRCh38 + GTF
+  -> STAR_GENOMEGENERATE (only without a cached index) -> STAR_ALIGN (two-pass) -> SAMTOOLS_SORT
+  -> PICARD_MARKDUPLICATES -> SAMTOOLS_INDEX; RSEQC_INFEREXPERIMENT -> strandedness
+     (subworkflows/local/align_markdup; the nf-core/rnaseq 3.28.0 arguments, conf/fullsize.config)
+BAM -> RUSTQC_RNA and the upstream tools (workflows/rustqc-benchmarks.nf, --run_upstream)
+    -> FULLSIZE_COMPARE: the checks library of the nf-test suites (tests/lib/checks) on RustQC's
+       output against the upstream outputs of the same run, as a report
+    -> FULLSIZE_VERDICT: fails the run if the report is not PASS
+```
+
+Results, under `--outdir`: `report/comparison.md` and `comparison.json` (PASS/FAIL per tool, the
+`expect:` of the dataset applies), `report/<tool>.txt` (the differences of a failing tool), then
+`rustqc/`, the upstream tools' directories and `picard/`, `star/` logs. The run fails on Platform
+when the comparison fails; the workflow's job summary links to the run and the report.
+Upstream tools without a check yet (TIN, Qualimap, inner distance, junction saturation, preseq) are
+skipped at this size (`conf/fullsize.config`); RustQC runs everything.
+
+### Caching
+
+- **Work directory**: `s3://<bucket>/rustqc-benchmarks/work/fullsize-<revision>`. Use the run's
+  Resume button on Platform to continue a failed run; nothing is shared between revisions.
+- **STAR index** (`--star_index_dir`) and **aligned BAM** (`--bam_dir`) are published to S3 under
+  keys made of `FULLSIZE_CACHE_VERSION`, a hash of the inputs (`tests/fetch_testdata.py --fingerprint`)
+  and a hash of the alignment code, so they are rebuilt only when those change.
+  A run finding the BAM does not align at all (weeks without changes to the inputs or the
+  alignment only re-run RustQC and the upstream tools); one finding only the index skips
+  `STAR_GENOMEGENERATE`. Bump `FULLSIZE_CACHE_VERSION` in the workflow to start over.
+
+### What Seqera Platform must provide
+
+Repository secrets and variables of `seqeralabs/RustQC-benchmarks`:
+
+| Name                 | Kind     | What                                                                        |
+| -------------------- | -------- | --------------------------------------------------------------------------- |
+| `TOWER_ACCESS_TOKEN` | secret   | Platform access token of the user or bot that launches                      |
+| `TOWER_WORKSPACE_ID` | variable | numeric ID of the workspace                                                 |
+| `TOWER_COMPUTE_ENV`  | variable | ID (or name) of the compute environment                                     |
+| `AWS_S3_BUCKET`      | variable | bucket (name only) for work, cache and results, prefix `rustqc-benchmarks/` |
+
+The compute environment (AWS Batch, with the Platform's AWS credentials; the head job reads the
+cache directories, so it needs S3 read access to the bucket and the public `ngi-igenomes` bucket)
+must offer: **16 CPUs and 64 GB RAM per task** (STAR index ~32 GB peak, two-pass alignment and
+sorting; `fullsize_max_*` params cap the requests), roughly **500 GB of scratch** (FASTQ 10 GB,
+unsorted, sorted and marked BAMs ~40 GB each, genome index ~30 GB, upstream tool temporaries;
+Fusion with NVMe instances or an autoexpanding volume), Docker with access to docker.io,
+quay.io and ghcr.io, and no spot reclaim for the alignment (or retries via Resume). Expect about
+10 CPU-hours for a first run (index, alignment, tools) and a few hours when the BAM is cached;
+the resources in `conf/fullsize.config` are estimates to tune after the first run.
+
+### Smoke test
+
+`hs_chr22_wts_smoke` runs the same pipeline on a 40 kb chr22 slice in a few minutes, e.g. with
+the conda profile (RustQC then comes from the PATH: the module is container-only):
+
+```bash
+python tests/fetch_testdata.py --params-json hs_chr22_wts_smoke > params.json
+nextflow run . --fullsize -profile conda,fullsize -params-file params.json --outdir smoke-out \
+    --fullsize_max_cpus 4 --fullsize_max_memory 12.GB --fullsize_max_time 4.h
+```

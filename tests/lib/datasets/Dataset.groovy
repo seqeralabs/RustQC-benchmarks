@@ -5,8 +5,15 @@ package datasets
 
 class Dataset {
 
-    /** Test sets: `small` runs on every PR, `large` only on main, releases and on demand. */
-    static final List<String> SETS = ['small', 'large'].asImmutable()
+    /**
+     * Test sets: `small` runs on every PR, `large` only on main, releases and on
+     * demand, `fullsize` is not run by nf-test at all (the full-size run, workflows/fullsize.nf;
+     * RUSTQC_DATASET_SETS=fullsize selects it, `all` does not include it).
+     */
+    static final List<String> SETS = ['small', 'large', 'fullsize'].asImmutable()
+
+    /** What RUSTQC_DATASET_SETS=all selects. */
+    static final List<String> ALL_SETS = ['small', 'large'].asImmutable()
 
     /** nf-test tags a manifest entry may not use: CI selects jobs by them. */
     static final List<String> RESERVED_TAGS = ['upstream', 'refgen'].asImmutable()

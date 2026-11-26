@@ -11,8 +11,10 @@
  *
  * Environment:
  *   RUSTQC_DATASET_SETS=small  which test sets to generate tests for: small (default), large,
- *                              small,large or all. Large datasets only run where asked for
- *                              (CI: main, releases and the `large` dispatch mode).
+ *                              fullsize, a comma-separated mix, or all (= small,large). Large
+ *                              datasets only run where asked for (CI: main, releases and the
+ *                              `large` dispatch mode); the fullsize set only by
+ *                              checks.FullsizeCompare (the full-size run).
  *   RUSTQC_DATASETS=a,b        only generate tests for these dataset ids
  *   RUSTQC_TESTDATA_DIR=dir    directory of pre-downloaded inputs (tests/fetch_testdata.py, or
  *                              the CI test-data cache). An input whose copy exists there is
@@ -59,10 +61,10 @@ class Datasets {
     static Set<String> selectedSets() {
         def value = System.getenv('RUSTQC_DATASET_SETS')?.trim()
         if (!value) return ['small'] as Set
-        if (value == 'all') return Dataset.SETS as Set
+        if (value == 'all') return Dataset.ALL_SETS as Set
         def sets = value.split(',')*.trim().findAll() as Set
         def unknown = sets - (Dataset.SETS as Set)
-        assert !unknown : "RUSTQC_DATASET_SETS names unknown sets ${unknown}; known: ${Dataset.SETS} or all"
+        assert !unknown : "RUSTQC_DATASET_SETS names unknown sets ${unknown}; known: ${Dataset.SETS} or all (= ${Dataset.ALL_SETS})"
         return sets
     }
 
