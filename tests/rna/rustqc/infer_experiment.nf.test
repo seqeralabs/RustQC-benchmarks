@@ -73,13 +73,11 @@ nextflow_process {
             def actualFile = "${rustqcDir}/rseqc/infer_experiment/test.infer_experiment.txt"
             assert path(actualFile).exists() : "infer_experiment.txt not found in: ${rustqcDir}"
 
-            // Exact text match against upstream reference (skip version header)
-            // Benchmark report confirms: identical on small dataset
-            CompareUtils.textMatch(
-                path(actualFile).readLines(),
-                path("${projectDir}/snapshots/rna/small/rseqc/infer_experiment/infer_experiment.txt").readLines(),
-                ['This is']
-            )
+            // Measured: byte-identical to RSeQC infer_experiment.py, including the
+            // "This is PairEnd Data" line, so the whole file is compared.
+            def upstreamFile = "${projectDir}/snapshots/rna/small/rseqc/infer_experiment/infer_experiment.txt"
+            assert path(actualFile).md5 == path(upstreamFile).md5 : \
+                "infer_experiment.txt differs from upstream RSeQC (${upstreamFile})"
         }
     }
 }

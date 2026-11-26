@@ -89,20 +89,25 @@ Each upstream tool (RSeQC, dupRadar, featureCounts) has its own regression test.
 - **When they fail:** The upstream tool produced different output (e.g., new version)
 - **How to fix:** Update both the snapshots and the reference files in `snapshots/rna/small/`
 
+Upstream tests must run each tool exactly as the reference files in `snapshots/rna/small/` were generated, i.e. as the
+pipeline runs it with `-profile test`: reverse-stranded paired-end input (`strandedness: 'reverse'`), and a BED derived
+from the GTF with `GTF2BED` where the BED's CDS (thickStart/thickEnd) matters (read_distribution). The reference file
+headers often record the command (e.g. `featureCounts ... -s 2`).
+
 ### Tag System
 
 Tests are tagged for selective execution:
 
-| Tag                          | Description                                | Tests matched |
-| ---------------------------- | ------------------------------------------ | ------------- |
-| `regression`                 | RustQC self-regression tests               | 9 tests       |
-| `crosscheck`                 | RustQC vs. upstream comparison             | 9 tests       |
-| `upstream`                   | Upstream tool regression tests             | 9 tests       |
-| `rustqc`                     | All RustQC tests (regression + crosscheck) | 18 tests      |
-| `rna`                        | All RNA-related tests                      | All           |
-| `small`                      | Tests using the small dataset              | All           |
-| `bam_stat`, `dupradar`, etc. | Tests for a specific tool                  | 2-3 tests     |
-| `pipeline`                   | Pipeline smoke tests                       | 3 tests       |
+| Tag                          | Description                                | Tests matched                    |
+| ---------------------------- | ------------------------------------------ | -------------------------------- |
+| `regression`                 | RustQC self-regression tests               | 15 tests                         |
+| `crosscheck`                 | RustQC vs. upstream comparison             | 16 tests                         |
+| `upstream`                   | Upstream tool regression tests             | 17 tests (16 + 1 pipeline smoke) |
+| `rustqc`                     | All RustQC tests (regression + crosscheck) | 31 tests                         |
+| `rna`                        | All RNA-related tests                      | All except `default.nf.test`     |
+| `small`                      | Tests using the small dataset              | All except `default.nf.test`     |
+| `bam_stat`, `dupradar`, etc. | Tests for a specific tool                  | 3 tests (`featurecounts`: 5)     |
+| `pipeline`                   | Pipeline smoke and snapshot tests          | 4 tests                          |
 
 Tags can be combined: `nf-test test --tag regression --tag bam_stat` runs only the bam_stat regression test.
 
@@ -156,27 +161,47 @@ Row 42, Col 3: value 0.12345679 differs from expected 0.12345678
 
 ## Comparison Methods & Tolerances
 
-Each tool uses comparison methods matched to its output characteristics:
+Each crosscheck uses the tightest comparison the measured data supports. The basis for each one is RustQC run on
+the small dataset with 2 threads (as in CI), checked against the committed Linux regression snapshots for the
+platform-sensitive outputs (preseq, dupRadar intercept/slope, TIN). Where RustQC genuinely differs from the upstream
+tool, the test keeps a measured allowance labelled **KNOWN DISCREPANCY** instead of hiding it behind a loose
+tolerance.
 
-| Tool                    | Regression method             | Crosscheck method                            | Crosscheck tolerance / notes                                        |
-| ----------------------- | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------- |
-| **bam_stat**            | `snapshot(filteredLines)`     | `textMatch` (skip headers)                   | Exact (after filtering `Load BAM` / `processing` prefixes)          |
-| **infer_experiment**    | `snapshot(filteredLines)`     | `textMatch` (skip "This is")                 | Exact (after filtering header line)                                 |
-| **read_distribution**   | `snapshot(lines)`             | Structural: row labels + column count        | Algorithmic differences too large for numeric comparison (UTR 3.5x) |
-| **read_duplication**    | `snapshot({pos, seq})`        | **md5 hash** (byte-identical)                | Gold standard — files are identical between RustQC and upstream     |
-| **dupradar**            | `snapshot({matrix, slope})`   | `tsvMatch` (count cols only) + slope parsing | Abs: 10, Rel: 2% for counts; skip rate/RPKM cols; slope within 10%  |
-| **featurecounts**       | `snapshot({counts, summary})` | Biotype-to-biotype comparison + summary      | 20% per-biotype tolerance; ambiguity resolution differs (~6% total) |
-| **inner_distance**      | `snapshot({distance, freq})`  | Read ID set match + `tsvMatch` (freq)        | Read IDs must match; freq histogram: 15% relative tolerance         |
-| **junction_annotation** | `snapshot({bed sorted, xls})` | `tsvMatch` (sorted BED + sorted XLS)         | Exact after sorting (identical content, different iteration order)  |
-| **junction_saturation** | `snapshot(lines)`             | 100% sample values + R script structure      | Deterministic values only; stochastic intermediate points skipped   |
+| Tool                       | Regression method              | Crosscheck method                                                                   | Measured basis / notes                                                                                      |
+| -------------------------- | ------------------------------ | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **bam_stat**               | `snapshot(filteredLines)`      | **md5**                                                                             | Byte-identical                                                                                              |
+| **infer_experiment**       | `snapshot(filteredLines)`      | **md5**                                                                             | Byte-identical, including the "This is PairEnd Data" line                                                   |
+| **flagstat**               | `snapshot(lines)`              | **md5**                                                                             | Byte-identical                                                                                              |
+| **idxstats**               | `snapshot(lines)`              | **md5**                                                                             | Byte-identical                                                                                              |
+| **samtools stats**         | `snapshot(non-# lines)`        | `textMatch`, skipping `#` lines                                                     | All 10,562 data lines identical; only comment lines (version, command, help text) differ                    |
+| **read_duplication**       | `snapshot({pos, seq})`         | **md5** (both files)                                                                | Byte-identical                                                                                              |
+| **read_distribution**      | `snapshot(lines)`              | `textMatch`, exact                                                                  | Identical line for line; trailing whitespace was stripped from the reference, and `textMatch` trims lines   |
+| **inner_distance**         | `snapshot({distance, freq})`   | **md5** (both files)                                                                | Byte-identical, row order included                                                                          |
+| **junction_annotation**    | `snapshot({bed sorted, xls})`  | **md5** (BED, XLS) + `textMatch` (Interact BED, log)                                | BED/XLS byte-identical; Interact BED and log identical except lines naming the input BAM / annotation       |
+| **junction_saturation**    | `snapshot(lines)`              | Exact: `x` array, 100% points, `z == y + w`, all other lines                        | Intermediate subsample points use different random streams (up to 17.5% apart), so they are not compared    |
+| **dupradar**               | `snapshot({matrix, slope})`    | **md5** (matrix) + intercept/slope at 1e-7 relative                                 | Matrix byte-identical (all 14 columns); intercept/slope agree to ~2.6e-9 relative                           |
+| **featurecounts**          | `snapshot({counts, summary})`  | Exact biotype counts + **md5** (biotype summary)                                    | All 14 biotypes identical; biotype-level summary byte-identical to `-g gene_biotype`                        |
+| **featurecounts per-gene** | (shared with featurecounts)    | `tsvMatch` exact (Geneid, Length, count), exons as sorted sets, **md5** (summary)   | 0 / 2,905 counts differ. KNOWN DISCREPANCY (cosmetic): RustQC lists exons in GTF order, Subread by position |
+| **preseq**                 | `snapshot(lines)`              | **md5**                                                                             | Byte-identical on Linux (same C++ RNG, seed 408). Differs on macOS (libc++), so valid on Linux CI only      |
+| **qualimap**               | `snapshot({total, high, low})` | **md5** (3 coverage profiles) + `textMatch` (`rnaseq_qc_results.txt`)               | Profiles byte-identical. KNOWN DISCREPANCY: 5'-3' bias 1.19 vs 1.3, allowed up to 0.12 absolute             |
+| **tin**                    | `snapshot({summary, xls})`     | Summary at 2.5% relative; per transcript: IDs and coordinates exact, TIN within 9.0 | KNOWN DISCREPANCY: RustQC TIN ~2% low (mean -1.9%, median -2.1%; max per-transcript gap 8.79)               |
 
 ### Tolerance rationale
 
-Tolerances were determined empirically by comparing actual RustQC outputs against upstream tools on the small test dataset. The tools fall into three categories:
+Comparisons fall into three categories:
 
-1. **Byte-identical** — `read_duplication`, `junction_annotation` (after sort): Use exact comparison or md5
-2. **Near-identical** — `bam_stat`, `infer_experiment`, `junction_saturation` (100% values): Use exact comparison (after filtering non-deterministic headers/paths)
-3. **Algorithmically different** — `dupradar` (multi-mapper handling), `featurecounts` (ambiguity resolution differs ~6% due to `-g gene_biotype` vs per-gene aggregation), `inner_distance` (~2% of reads classified differently), `read_distribution` (gene model resolution): Use tolerance-based or structural comparison
+1. **Byte-identical** (md5): `bam_stat`, `infer_experiment`, `flagstat`, `idxstats`, `read_duplication`,
+   `inner_distance`, `junction_annotation` (BED/XLS), `dupradar` (matrix), `featurecounts` (summaries),
+   `qualimap` (coverage profiles), `preseq` (Linux only).
+2. **Exact after excluding non-data lines**: `samtools stats` (`#` comments), `read_distribution` (trailing
+   whitespace), `junction_annotation` (Interact BED header, log annotation line), `junction_saturation` (all
+   deterministic values; random intermediate subsample points are skipped), `featurecounts` biotype and
+   per-gene counts. `dupradar` intercept/slope are compared at 1e-7 relative, which only absorbs
+   floating-point differences between RustQC's fit and R's `glm()`.
+3. **Known discrepancies** (measured allowance just above the observed gap, so any further drift fails):
+   - `tin`: RustQC TIN is systematically ~2% lower than RSeQC, pending investigation in RustQC.
+   - `qualimap`: the 5'-3' bias differs (1.19 vs 1.3), although the 5' and 3' bias values match.
+   - `featurecounts` per-gene: the Chr/Start/End/Strand exon lists are in a different order (cosmetic).
 
 ## Updating Snapshots
 
@@ -329,7 +354,7 @@ Configured in `nf-test.config`:
 
 ## Adding Tests for New Tools
 
-When RustQC adds support for a new tool (e.g., samtools, qualimap, preseq):
+When RustQC adds support for a new tool:
 
 1. **Add upstream reference files** to `snapshots/rna/small/<tool>/`
 

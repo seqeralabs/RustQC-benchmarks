@@ -15,7 +15,7 @@ nextflow_process {
             process {
                 """
                 input[0] = Channel.of([
-                    [ id: 'test', single_end: false, strandedness: 'unstranded' ],
+                    [ id: 'test', single_end: false, strandedness: 'reverse' ],
                     file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true)
                 ])
                 input[1] = Channel.of([
@@ -39,10 +39,19 @@ nextflow_process {
             assert path(process.out.boxplot[0][1]).exists()
             assert path(process.out.hist[0][1]).exists()
 
+            // dupRadar prints the fitted intercept/slope at full R precision and the
+            // last digit varies between runs (floating-point noise), so snapshot
+            // them rounded to 10 significant digits.
+            def roundTrailingNumber = { String line ->
+                line.replaceAll(/(-?\d+\.\d+(?:[eE][-+]?\d+)?)\s*$/) { m ->
+                    String.format(Locale.ROOT, '%.10g', m[1] as double)
+                }
+            }
+
             // Snapshot data files
             snapshot(
                 "dupMatrix":      path(dupMatrix).readLines(),
-                "intercept_slope": path(interceptSlope).readLines()
+                "intercept_slope": path(interceptSlope).readLines().collect { roundTrailingNumber(it) }
             ).match("dupradar_output")
         }
     }

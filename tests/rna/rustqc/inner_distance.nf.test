@@ -79,27 +79,12 @@ nextflow_process {
 
             def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/inner_distance"
 
-            // Per-read distance: same read IDs, ~2.2% have different values
-            // due to different transcript model resolution. Sort by read ID
-            // for stable comparison, use relative tolerance for numeric values.
-            def actualDist   = path(distFile).readLines().sort()
-            def expectedDist = path("${upstreamDir}/inner_distance.txt").readLines().sort()
-            assert actualDist.size() == expectedDist.size() : \
-                "Line count mismatch: ${actualDist.size()} vs ${expectedDist.size()}"
-
-            // Verify all read IDs are present (col 0 is read ID)
-            def actualIds   = actualDist.collect { it.split('\t')[0] } as Set
-            def expectedIds = expectedDist.collect { it.split('\t')[0] } as Set
-            assert actualIds == expectedIds : \
-                "Read ID mismatch: ${(actualIds - expectedIds).size()} missing, ${(expectedIds - actualIds).size()} extra"
-
-            // Frequency histogram: values differ due to the per-read differences.
-            // Use relative tolerance for bin counts.
-            CompareUtils.tsvMatch(
-                path(freqFile).readLines(),
-                path("${upstreamDir}/inner_distance_freq.txt").readLines(),
-                [relTolerance: 0.15]
-            )
+            // Measured: both files are byte-identical to RSeQC inner_distance.py,
+            // including the per-read classification and row order of all 20,861 pairs.
+            assert path(distFile).md5 == path("${upstreamDir}/inner_distance.txt").md5 : \
+                "inner_distance.txt differs from upstream RSeQC"
+            assert path(freqFile).md5 == path("${upstreamDir}/inner_distance_freq.txt").md5 : \
+                "inner_distance_freq.txt differs from upstream RSeQC"
         }
     }
 }

@@ -74,25 +74,40 @@ nextflow_process {
             assert process.success
 
             def rustqcDir = process.out.results[0][1]
-            def bedFile = "${rustqcDir}/rseqc/junction_annotation/test.junction.bed"
-            def xlsFile = "${rustqcDir}/rseqc/junction_annotation/test.junction.xls"
-            assert path(bedFile).exists() : ".junction.bed not found in: ${rustqcDir}"
-            assert path(xlsFile).exists() : ".junction.xls not found in: ${rustqcDir}"
+            def bedFile      = "${rustqcDir}/rseqc/junction_annotation/test.junction.bed"
+            def xlsFile      = "${rustqcDir}/rseqc/junction_annotation/test.junction.xls"
+            def interactFile = "${rustqcDir}/rseqc/junction_annotation/test.junction.Interact.bed"
+            def logFile      = "${rustqcDir}/rseqc/junction_annotation/test.junction_annotation.log"
+            assert path(bedFile).exists()      : ".junction.bed not found in: ${rustqcDir}"
+            assert path(xlsFile).exists()      : ".junction.xls not found in: ${rustqcDir}"
+            assert path(interactFile).exists() : ".junction.Interact.bed not found in: ${rustqcDir}"
+            assert path(logFile).exists()      : ".junction_annotation.log not found in: ${rustqcDir}"
 
             def upstreamDir = "${projectDir}/snapshots/rna/small/rseqc/junction_annotation"
 
-            // BED: exact match after sorting (line order may differ)
-            def actualBed   = path(bedFile).readLines().sort()
-            def expectedBed = path("${upstreamDir}/junction.bed").readLines().sort()
-            CompareUtils.tsvMatch(actualBed, expectedBed, [tolerance: 0.0])
+            // Measured: BED and XLS are byte-identical to RSeQC junction_annotation.py,
+            // row order included, so no sorting is needed.
+            assert path(bedFile).md5 == path("${upstreamDir}/junction.bed").md5 : \
+                "junction.bed differs from upstream RSeQC"
+            assert path(xlsFile).md5 == path("${upstreamDir}/junction.xls").md5 : \
+                "junction.xls differs from upstream RSeQC"
 
-            // XLS: exact match after sorting data rows (line order may differ)
-            // Same columns, same content — just different iteration order
-            def actualXls   = path(xlsFile).readLines()
-            def expectedXls = path("${upstreamDir}/junction.xls").readLines()
-            def actualXlsSorted   = [actualXls[0]] + actualXls.drop(1).sort()
-            def expectedXlsSorted = [expectedXls[0]] + expectedXls.drop(1).sort()
-            CompareUtils.tsvMatch(actualXlsSorted, expectedXlsSorted, [tolerance: 0.0])
+            // Interact BED: identical except the track header, whose description
+            // names the input BAM path.
+            CompareUtils.textMatch(
+                path(interactFile).readLines(),
+                path("${upstreamDir}/junction.Interact.bed").readLines(),
+                ['track ']
+            )
+
+            // Log: the splicing event and junction summary is identical. Only the
+            // first line differs: it names the annotation that was read (RustQC reads
+            // the GTF, RSeQC the BED derived from it).
+            CompareUtils.textMatch(
+                path(logFile).readLines(),
+                path("${upstreamDir}/junction_annotation.txt").readLines(),
+                ['Reading reference']
+            )
         }
     }
 }
