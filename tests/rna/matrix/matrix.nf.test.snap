@@ -75,7 +75,7 @@
                     "*\t0\t0\t0"
                 ],
                 "featurecounts_geneid": {
-                    "counts_md5": "2759e9b6f069cc10219a1b447e468447",
+                    "counts_md5": "31d537db29c8e7379cc8f765bdb5d7f2",
                     "genes": 2905,
                     "summary": [
                         "Status\ttest.bam",
@@ -417,7 +417,7 @@
                     "*\t0\t0\t0"
                 ],
                 "featurecounts_geneid": {
-                    "counts_md5": "5075c5254c045203d7475e31463e3f9b",
+                    "counts_md5": "4873e6e9b7e00045ee110f7505c902af",
                     "genes": 82,
                     "summary": [
                         "Status\tERR188383.Aligned.out.bam",
@@ -1125,7 +1125,7 @@
                     "*\t0\t0\t0"
                 ],
                 "featurecounts_geneid": {
-                    "counts_md5": "e1a8707295f023c92eeab9ceb9ca49f0",
+                    "counts_md5": "aa1943d5cc63ff186ca939e87095e26c",
                     "genes": 1923,
                     "summary": [
                         "Status\tSRX11780885.chr19_22.ds50.bam",
@@ -1296,7 +1296,7 @@
                     "*\t0\t0\t0"
                 ],
                 "featurecounts_geneid": {
-                    "counts_md5": "5e6c460991d3e855b05385ca1e832fe1",
+                    "counts_md5": "2a4eff89ec8329b58e0291a64ab468d6",
                     "genes": 2392,
                     "summary": [
                         "Status\tERR188383.Aligned.out.bam",
@@ -1467,7 +1467,7 @@
                     "*\t0\t0\t0"
                 ],
                 "featurecounts_geneid": {
-                    "counts_md5": "437bc9828cb032e97b20b5abdbca937e",
+                    "counts_md5": "b6a998b57ed751d2cb86cb0cbb8e4f70",
                     "genes": 1510,
                     "summary": [
                         "Status\tSRX11780887_chr20.bam",
