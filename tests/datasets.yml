@@ -48,7 +48,15 @@ sources:
 # but do not fail. Empty this list when baseline_image is bumped.
 release_regression:
   baseline_image: ghcr.io/seqeralabs/rustqc:v0.2.1
-  accepted_differences: []
+  accepted_differences:
+    # RustQC #194 and #195 (TIN follows RSeQC's tin.py: pileup coverage, gtf2bed row order, number formatting)
+    - path: rseqc/tin/{sample}.tin.xls
+      reason: TIN values and row order changed to match tin.py (RustQC #194, #195)
+    - path: rseqc/tin/{sample}.summary.txt
+      reason: TIN summary values changed to match tin.py (RustQC #194, #195)
+    # RustQC #193 (exons of a gene are listed in Subread featureCounts' order)
+    - path: featurecounts/{sample}.featureCounts.tsv
+      reason: exons are listed in Subread featureCounts' order (RustQC #193)
 
 datasets:
   - id: hs_chr6_pe_rev
