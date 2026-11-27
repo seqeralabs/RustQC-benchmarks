@@ -7,7 +7,7 @@ on:
       - "**/*.md"
       - "**/*.png"
       - "**/*.svg"
-  # Pushes to main and the weekly schedule also run the `large` dataset set (tests/DATASETS.md)
+  # Pushes to main and releases also run the `large` dataset set (tests/DATASETS.md)
   push:
     branches:
       - main
@@ -19,9 +19,6 @@ on:
       - "**/*.svg"
   release:
     types: [published]
-  schedule:
-    # Mondays 04:30 UTC: every test, small and large, against the current RustQC dev image
-    - cron: "30 4 * * 1"
   workflow_dispatch:
     inputs:
       test_mode:
@@ -80,7 +77,7 @@ jobs:
     steps:
       # Which dataset sets run (tests/DATASETS.md):
       #   small  every event except pushes to main and the `large` dispatch mode
-      #   large  pushes to main, releases, the weekly schedule and the `large` dispatch mode;
+      #   large  pushes to main, releases and the `large` dispatch mode;
       #          never on pull requests
       #   refgen only the `refgen` dispatch mode: upstream references as an artifact
       - name: Plan test sets
@@ -94,7 +91,7 @@ jobs:
           run_refgen=false
           case "$EVENT_NAME" in
             push) run_small=false; run_large=true ;;
-            release | schedule) run_large=true ;;
+            release) run_large=true ;;
             workflow_dispatch)
               case "$TEST_MODE" in
                 large) run_small=false; run_large=true ;;

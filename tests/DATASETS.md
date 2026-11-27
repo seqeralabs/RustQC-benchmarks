@@ -66,7 +66,7 @@ where it is handled):
   dataset marks `dupradar: upstream_error`.
 
 The `small` set runs on every pull request. The `large` set runs on pushes to `main`, on
-releases, on the weekly schedule and in the `large` manual mode, never on pull requests
+releases and in the `large` manual mode, never on pull requests
 ([CI](#ci)).
 
 ## Manifest
@@ -229,13 +229,12 @@ the repository. Unpack it at the repository root and review the diff.
 
 `.github/workflows/nf-test.yml` runs the tests:
 
-| Event                           | Small set (all tests)                     | Large set    |
-| ------------------------------- | ----------------------------------------- | ------------ |
-| pull request                    | tests related to the change, all profiles | no           |
-| push to `main`                  | no (ran on the pull request)              | yes          |
-| release                         | every test                                | yes          |
-| weekly schedule (Mon 04:30 UTC) | every test                                | yes          |
-| manual (`workflow_dispatch`)    | by `test_mode`                            | `large` mode |
+| Event                        | Small set (all tests)                     | Large set    |
+| ---------------------------- | ----------------------------------------- | ------------ |
+| pull request                 | tests related to the change, all profiles | no           |
+| push to `main`               | no (ran on the pull request)              | yes          |
+| release                      | every test                                | yes          |
+| manual (`workflow_dispatch`) | by `test_mode`                            | `large` mode |
 
 Manual modes (`test_mode`): `all` (every small-set test), `regression`, `crosscheck`,
 `upstream`, `matrix`, `release_regression` (each selects that tag), `large` (only the large

@@ -12,7 +12,7 @@
  * Environment:
  *   RUSTQC_DATASET_SETS=small  which test sets to generate tests for: small (default), large,
  *                              small,large or all. Large datasets only run where asked for
- *                              (CI: main, the weekly schedule and the `large` dispatch mode).
+ *                              (CI: main, releases and the `large` dispatch mode).
  *   RUSTQC_DATASETS=a,b        only generate tests for these dataset ids
  *   RUSTQC_TESTDATA_DIR=dir    directory of pre-downloaded inputs (tests/fetch_testdata.py, or
  *                              the CI test-data cache). An input whose copy exists there is

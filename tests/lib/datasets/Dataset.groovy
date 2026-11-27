@@ -5,7 +5,7 @@ package datasets
 
 class Dataset {
 
-    /** Test sets: `small` runs on every PR, `large` only on main, the weekly schedule and on demand. */
+    /** Test sets: `small` runs on every PR, `large` only on main, releases and on demand. */
     static final List<String> SETS = ['small', 'large'].asImmutable()
 
     /** nf-test tags a manifest entry may not use: CI selects jobs by them. */
