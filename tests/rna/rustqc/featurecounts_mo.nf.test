@@ -16,12 +16,12 @@ nextflow_process {
     //
     // The crosschecks are exact. With -M, -O or both, RustQC matches Subread
     // featureCounts (-p -B -C -t exon -s 2) on the small dataset for:
-    //   - test.featureCounts.tsv                vs -g gene_id      (Geneid, Length, count)
+    //   - test.featureCounts.tsv                vs -g gene_id      (every line but "# Program:")
     //   - test.featureCounts.tsv.summary        vs -g gene_id      .summary
     //   - test.featureCounts.biotype.tsv.summary vs -g gene_biotype .summary
     //   - test.biotype_counts.tsv               vs -g gene_biotype (Geneid, count)
-    // Chr/Start/End/Strand are skipped in the per-gene file: they list the
-    // same exons but in a different order (as in featurecounts.nf.test).
+    // The per-gene file is compared line for line, the per-exon Chr/Start/End/Strand
+    // lists included (in Subread's order since RustQC PR #193).
     // References: snapshots/rna/small/featurecounts_mo/<mode>/<attribute>/.
 
     // ── Regression: -M ─────────────────────────────────────────
@@ -97,22 +97,19 @@ nextflow_process {
             def biotypeRef = "${projectDir}/snapshots/rna/small/featurecounts_mo/M/gene_biotype"
 
             // ── Gene level ────────────────────────────────────────────────
-            // Geneid, Length and count must be identical, row for row
-            CompareUtils.tsvMatch(
+            // Every line identical (per-exon lists included), except the "# Program:" header
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.tsv").readLines(),
                 path("${geneRef}/test.featureCounts.tsv").readLines(),
-                [
-                    skipColumns:  [1, 2, 3, 4] as Set,  // Chr/Start/End/Strand exon lists
-                    skipPrefixes: ['#'],                // "# Program:..." header line
-                ]
+                ['# Program:']                          // version and command line
             )
-            CompareUtils.textMatch(
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.tsv.summary").readLines(),
                 path("${geneRef}/test.featureCounts.tsv.summary").readLines()
             )
 
             // ── Biotype level ─────────────────────────────────────────────
-            CompareUtils.textMatch(
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.biotype.tsv.summary").readLines(),
                 path("${biotypeRef}/test.featureCounts.tsv.summary").readLines()
             )
@@ -212,22 +209,19 @@ nextflow_process {
             def biotypeRef = "${projectDir}/snapshots/rna/small/featurecounts_mo/O/gene_biotype"
 
             // ── Gene level ────────────────────────────────────────────────
-            // Geneid, Length and count must be identical, row for row
-            CompareUtils.tsvMatch(
+            // Every line identical (per-exon lists included), except the "# Program:" header
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.tsv").readLines(),
                 path("${geneRef}/test.featureCounts.tsv").readLines(),
-                [
-                    skipColumns:  [1, 2, 3, 4] as Set,  // Chr/Start/End/Strand exon lists
-                    skipPrefixes: ['#'],                // "# Program:..." header line
-                ]
+                ['# Program:']                          // version and command line
             )
-            CompareUtils.textMatch(
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.tsv.summary").readLines(),
                 path("${geneRef}/test.featureCounts.tsv.summary").readLines()
             )
 
             // ── Biotype level ─────────────────────────────────────────────
-            CompareUtils.textMatch(
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.biotype.tsv.summary").readLines(),
                 path("${biotypeRef}/test.featureCounts.tsv.summary").readLines()
             )
@@ -327,22 +321,19 @@ nextflow_process {
             def biotypeRef = "${projectDir}/snapshots/rna/small/featurecounts_mo/MO/gene_biotype"
 
             // ── Gene level ────────────────────────────────────────────────
-            // Geneid, Length and count must be identical, row for row
-            CompareUtils.tsvMatch(
+            // Every line identical (per-exon lists included), except the "# Program:" header
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.tsv").readLines(),
                 path("${geneRef}/test.featureCounts.tsv").readLines(),
-                [
-                    skipColumns:  [1, 2, 3, 4] as Set,  // Chr/Start/End/Strand exon lists
-                    skipPrefixes: ['#'],                // "# Program:..." header line
-                ]
+                ['# Program:']                          // version and command line
             )
-            CompareUtils.textMatch(
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.tsv.summary").readLines(),
                 path("${geneRef}/test.featureCounts.tsv.summary").readLines()
             )
 
             // ── Biotype level ─────────────────────────────────────────────
-            CompareUtils.textMatch(
+            ExactCompare.exactMatch(
                 path("${fcDir}/test.featureCounts.biotype.tsv.summary").readLines(),
                 path("${biotypeRef}/test.featureCounts.tsv.summary").readLines()
             )

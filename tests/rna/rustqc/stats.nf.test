@@ -72,11 +72,10 @@ nextflow_process {
 
             def upstreamFile = "${projectDir}/snapshots/rna/small/samtools/test.stats"
 
-            // Measured: all 10,562 data lines (CHK checksums, SN summary and every
-            // histogram) are identical to samtools stats. Only the '#' comment lines
-            // differ (version string, command line and section help text), so those
-            // are skipped and everything else must match exactly.
-            CompareUtils.textMatch(
+            // Every data line (CHK checksums, SN summary, every histogram and the GC-depth
+            // section) is identical to samtools stats 1.22.1. Only the '#' comment lines
+            // differ (version string, command line and section help text).
+            ExactCompare.exactMatch(
                 path(actualFile).readLines(),
                 path(upstreamFile).readLines(),
                 ['#']

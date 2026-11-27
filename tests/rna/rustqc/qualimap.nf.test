@@ -88,27 +88,18 @@ nextflow_process {
                     "${name} differs from upstream Qualimap"
             }
 
-            // rnaseq_qc_results.txt: identical apart from two kinds of line.
-            //   - "bam file =" / "gff file =" name the inputs (upstream ran on a
-            //     name-sorted BAM and an uncompressed GTF).
-            //   - KNOWN DISCREPANCY: "5'-3' bias" is 1.19 in RustQC and 1.3 in Qualimap,
-            //     although the 5' bias (0.71) and 3' bias (0.57) lines match exactly.
-            //     Pending investigation in RustQC. Allow an absolute gap of 0.12, just
-            //     above the measured 0.11, so any further drift fails.
-            def actualLines   = path(resultsFile).readLines()
-            def expectedLines = path("${upstreamDir}/rnaseq_qc_results.txt").readLines()
-            def biasPrefix = "5'-3' bias ="
-            CompareUtils.textMatch(actualLines, expectedLines, ['bam file =', 'gff file =', biasPrefix])
-
-            def parseBias = { lines ->
-                def line = lines*.trim().find { it.startsWith(biasPrefix) }
-                line ? (line.substring(biasPrefix.length()).trim() as Double) : null
-            }
-            def actualBias   = parseBias(actualLines)
-            def expectedBias = parseBias(expectedLines)
-            assert actualBias != null && expectedBias != null : "5'-3' bias line missing"
-            assert Math.abs(actualBias - expectedBias) <= 0.12 : \
-                "5'-3' bias: RustQC=${actualBias} upstream=${expectedBias} (known gap is 0.11)"
+            // rnaseq_qc_results.txt: identical to Qualimap 2.3, 5'-3' bias included, except
+            //   - "bam file =" / "gff file =", which name the inputs (upstream ran on a
+            //     name-sorted BAM and an uncompressed GTF);
+            //   - the order of junction motifs with equal percentages, which Qualimap takes
+            //     from Java HashMap iteration: each tied run is compared as a set
+            //     (ExactCompare.qualimapMotifTiesAsSets; no ties on this dataset today).
+            def results = { lines -> ExactCompare.qualimapMotifTiesAsSets('rnaseq_qc_results.txt', lines) }
+            ExactCompare.exactMatch(
+                results(path(resultsFile).readLines()),
+                results(path("${upstreamDir}/rnaseq_qc_results.txt").readLines()),
+                ['    bam file = ', '    gff file = ']
+            )
         }
     }
 }

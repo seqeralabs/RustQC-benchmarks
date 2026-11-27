@@ -18,19 +18,24 @@ All upstream tools are run via standard [nf-core modules](https://nf-co.re/modul
 
 ### Tools compared (RNA suite)
 
-| RustQC output       | Upstream tool                                                            | Comparison                         |
-| ------------------- | ------------------------------------------------------------------------ | ---------------------------------- |
-| dupRadar            | [dupRadar](https://bioconductor.org/packages/dupRadar/) (R/Bioconductor) | TSV match, float tolerance 1e-10   |
-| featureCounts       | [Subread featureCounts](http://subread.sourceforge.net/)                 | Column subset match (gene + count) |
-| bam_stat            | [RSeQC bam_stat.py](http://rseqc.sourceforge.net/)                       | Text match, skip log headers       |
-| infer_experiment    | [RSeQC infer_experiment.py](http://rseqc.sourceforge.net/)               | Text match, skip info headers      |
-| read_duplication    | [RSeQC read_duplication.py](http://rseqc.sourceforge.net/)               | TSV exact match                    |
-| read_distribution   | [RSeQC read_distribution.py](http://rseqc.sourceforge.net/)              | TSV match, 0.5 relative tolerance  |
-| junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | Row-sorted TSV + BED comparison    |
-| junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Structural check (stochastic tool) |
-| inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | TSV match, 0.1 relative tolerance  |
-| qualimap            | [Qualimap rnaseq](http://qualimap.conesalab.org/)                        | _comparison TBD_                   |
-| preseq              | [preseq lc_extrap](http://smithlabresearch.org/software/preseq/)         | _comparison TBD_                   |
+| RustQC output       | Upstream tool                                                            | Comparison                                                     |
+| ------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| dupRadar            | [dupRadar](https://bioconductor.org/packages/dupRadar/) (R/Bioconductor) | md5 (matrix); intercept/slope at 1e-8 relative                 |
+| featureCounts       | [Subread featureCounts](http://subread.sourceforge.net/)                 | Exact (per-gene table incl. exon lists, summaries, biotypes)   |
+| samtools            | [samtools](http://www.htslib.org/) stats / flagstat / idxstats           | md5 (flagstat, idxstats); stats exact except `#` comment lines |
+| bam_stat            | [RSeQC bam_stat.py](http://rseqc.sourceforge.net/)                       | md5                                                            |
+| infer_experiment    | [RSeQC infer_experiment.py](http://rseqc.sourceforge.net/)               | md5                                                            |
+| read_duplication    | [RSeQC read_duplication.py](http://rseqc.sourceforge.net/)               | md5                                                            |
+| read_distribution   | [RSeQC read_distribution.py](http://rseqc.sourceforge.net/)              | md5                                                            |
+| junction_annotation | [RSeQC junction_annotation.py](http://rseqc.sourceforge.net/)            | md5 (BED, XLS), exact text (Interact BED, log)                 |
+| junction_saturation | [RSeQC junction_saturation.py](http://rseqc.sourceforge.net/)            | Exact: x axis, 100% points, all = known + novel                |
+| inner_distance      | [RSeQC inner_distance.py](http://rseqc.sourceforge.net/)                 | md5                                                            |
+| tin                 | [RSeQC tin.py](http://rseqc.sourceforge.net/)                            | md5 (tin.xls, summary)                                         |
+| split_bam           | [RSeQC split_bam.py](http://rseqc.sourceforge.net/)                      | md5                                                            |
+| qualimap            | [Qualimap rnaseq](http://qualimap.conesalab.org/)                        | md5 (profiles), exact results (tied junction motifs as sets)   |
+| preseq              | [preseq lc_extrap](http://smithlabresearch.org/software/preseq/)         | md5 (Linux)                                                    |
+
+The exact rules and their reasons are in [tests/README.md](tests/README.md#comparison-methods--tolerances).
 
 ## How it works
 

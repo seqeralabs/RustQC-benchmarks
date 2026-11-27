@@ -171,47 +171,56 @@ Row 42, Col 3: value 0.12345679 differs from expected 0.12345678
 
 ## Comparison Methods & Tolerances
 
-Each crosscheck uses the tightest comparison the measured data supports. The basis for each one is RustQC run on
-the small dataset with 2 threads (as in CI), checked against the committed Linux regression snapshots for the
-platform-sensitive outputs (preseq, dupRadar intercept/slope, TIN). Where RustQC genuinely differs from the upstream
-tool, the test keeps a measured allowance labelled **KNOWN DISCREPANCY** instead of hiding it behind a loose
-tolerance.
+Each crosscheck compares RustQC with the upstream tool exactly where RustQC reproduces the upstream bytes. The
+allowances left are for what RustQC does not reproduce (the dupRadar logistic fit's last digits, junction_saturation's
+random subsample points; see [Tolerance rationale](#tolerance-rationale)) and for an order that upstream takes from a
+hash table (Qualimap's tied junction motifs).
 
-| Tool                       | Regression method              | Crosscheck method                                                                   | Measured basis / notes                                                                                      |
-| -------------------------- | ------------------------------ | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **bam_stat**               | `snapshot(filteredLines)`      | **md5**                                                                             | Byte-identical                                                                                              |
-| **infer_experiment**       | `snapshot(filteredLines)`      | **md5**                                                                             | Byte-identical, including the "This is PairEnd Data" line                                                   |
-| **flagstat**               | `snapshot(lines)`              | **md5**                                                                             | Byte-identical                                                                                              |
-| **idxstats**               | `snapshot(lines)`              | **md5**                                                                             | Byte-identical                                                                                              |
-| **samtools stats**         | `snapshot(non-# lines)`        | `textMatch`, skipping `#` lines                                                     | All 10,562 data lines identical; only comment lines (version, command, help text) differ                    |
-| **read_duplication**       | `snapshot({pos, seq})`         | **md5** (both files)                                                                | Byte-identical                                                                                              |
-| **read_distribution**      | `snapshot(lines)`              | `textMatch`, exact                                                                  | Identical line for line; trailing whitespace was stripped from the reference, and `textMatch` trims lines   |
-| **inner_distance**         | `snapshot({distance, freq})`   | **md5** (both files)                                                                | Byte-identical, row order included                                                                          |
-| **junction_annotation**    | `snapshot({bed sorted, xls})`  | **md5** (BED, XLS) + `textMatch` (Interact BED, log)                                | BED/XLS byte-identical; Interact BED and log identical except lines naming the input BAM / annotation       |
-| **junction_saturation**    | `snapshot(lines)`              | Exact: `x` array, 100% points, `z == y + w`, all other lines                        | Intermediate subsample points use different random streams (up to 17.5% apart), so they are not compared    |
-| **dupradar**               | `snapshot({matrix, slope})`    | **md5** (matrix) + intercept/slope at 1e-7 relative                                 | Matrix byte-identical (all 14 columns); intercept/slope agree to ~2.6e-9 relative                           |
-| **featurecounts**          | `snapshot({counts, summary})`  | Exact biotype counts + **md5** (biotype summary)                                    | All 14 biotypes identical; biotype-level summary byte-identical to `-g gene_biotype`                        |
-| **featurecounts per-gene** | (shared with featurecounts)    | `tsvMatch` exact (Geneid, Length, count), exons as sorted sets, **md5** (summary)   | 0 / 2,905 counts differ. KNOWN DISCREPANCY (cosmetic): RustQC lists exons in GTF order, Subread by position |
-| **preseq**                 | `snapshot(lines)`              | **md5**                                                                             | Byte-identical on Linux (same C++ RNG, seed 408). Differs on macOS (libc++), so valid on Linux CI only      |
-| **qualimap**               | `snapshot({total, high, low})` | **md5** (3 coverage profiles) + `textMatch` (`rnaseq_qc_results.txt`)               | Profiles byte-identical. KNOWN DISCREPANCY: 5'-3' bias 1.19 vs 1.3, allowed up to 0.12 absolute             |
-| **tin**                    | `snapshot({summary, xls})`     | Summary at 2.5% relative; per transcript: IDs and coordinates exact, TIN within 9.0 | KNOWN DISCREPANCY: RustQC TIN ~2% low (mean -1.9%, median -2.1%; max per-transcript gap 8.79)               |
+| Tool                       | Regression method              | Crosscheck method                                                                 | Measured basis / notes                                                                                 |
+| -------------------------- | ------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **bam_stat**               | `snapshot(filteredLines)`      | **md5**                                                                           | Byte-identical                                                                                         |
+| **infer_experiment**       | `snapshot(filteredLines)`      | **md5**                                                                           | Byte-identical, including the "This is PairEnd Data" line                                              |
+| **flagstat**               | `snapshot(lines)`              | **md5**                                                                           | Byte-identical                                                                                         |
+| **idxstats**               | `snapshot(lines)`              | **md5**                                                                           | Byte-identical                                                                                         |
+| **samtools stats**         | `snapshot(non-# lines)`        | `exactMatch`, skipping `#` lines                                                  | All data lines identical, GC-depth (GCD) section included; only comment lines differ                   |
+| **read_duplication**       | `snapshot({pos, seq})`         | **md5** (both files)                                                              | Byte-identical                                                                                         |
+| **read_distribution**      | `snapshot(lines)`              | **md5**                                                                           | Byte-identical, trailing spaces of the table rows included                                             |
+| **inner_distance**         | `snapshot({distance, freq})`   | **md5** (both files)                                                              | Byte-identical, row order included                                                                     |
+| **junction_annotation**    | `snapshot({bed sorted, xls})`  | **md5** (BED, XLS) + `textMatch` (Interact BED, log)                              | BED/XLS byte-identical; Interact BED and log identical except lines naming the input BAM / annotation  |
+| **junction_saturation**    | `snapshot(lines)`              | Exact: `x` array, 100% points, `z == y + w`, all other lines                      | Intermediate subsample points use different random streams (RSeQC's are unseeded), so are not compared |
+| **dupradar**               | `snapshot({matrix, slope})`    | **md5** (matrix) + intercept/slope at 1e-8 relative (1e-9 absolute if degenerate) | Matrix byte-identical; fit agrees to ~2.6e-9 relative (RustQC's own logistic fit vs R's `glm()`)       |
+| **featurecounts**          | `snapshot({counts, summary})`  | Exact biotype counts + **md5** (biotype summary)                                  | All 14 biotypes identical; biotype-level summary byte-identical to `-g gene_biotype`                   |
+| **featurecounts per-gene** | (shared with featurecounts)    | `exactMatch` (all but `# Program:`), **md5** (summary)                            | Identical for all 2,905 genes, per-exon Chr/Start/End/Strand lists in Subread's order included         |
+| **preseq**                 | `snapshot(lines)`              | **md5**                                                                           | Byte-identical on Linux (same C++ RNG, seed 408). Differs on macOS (libc++), so valid on Linux CI only |
+| **qualimap**               | `snapshot({total, high, low})` | **md5** (3 coverage profiles) + `exactMatch` (`rnaseq_qc_results.txt`)            | Identical, 5'-3' bias included, except the input names; tied junction motifs compared as sets          |
+| **tin**                    | `snapshot({summary, xls})`     | **md5** (tin.xls, summary)                                                        | Byte-identical on FMA-capable x86-64 and aarch64 (see "Reference platform")                            |
 
 ### Tolerance rationale
 
 Comparisons fall into three categories:
 
 1. **Byte-identical** (md5): `bam_stat`, `infer_experiment`, `flagstat`, `idxstats`, `read_duplication`,
-   `inner_distance`, `junction_annotation` (BED/XLS), `dupradar` (matrix), `featurecounts` (summaries),
-   `qualimap` (coverage profiles), `preseq` (Linux only).
-2. **Exact after excluding non-data lines**: `samtools stats` (`#` comments), `read_distribution` (trailing
-   whitespace), `junction_annotation` (Interact BED header, log annotation line), `junction_saturation` (all
-   deterministic values; random intermediate subsample points are skipped), `featurecounts` biotype and
-   per-gene counts. `dupradar` intercept/slope are compared at 1e-7 relative, which only absorbs
-   floating-point differences between RustQC's fit and R's `glm()`.
-3. **Known discrepancies** (measured allowance just above the observed gap, so any further drift fails):
-   - `tin`: RustQC TIN is systematically ~2% lower than RSeQC, pending investigation in RustQC.
-   - `qualimap`: the 5'-3' bias differs (1.19 vs 1.3), although the 5' and 3' bias values match.
-   - `featurecounts` per-gene: the Chr/Start/End/Strand exon lists are in a different order (cosmetic).
+   `read_distribution`, `inner_distance`, `junction_annotation` (BED/XLS), `dupradar` (matrix),
+   `featurecounts` (summaries), `qualimap` (coverage profiles), `preseq` (Linux only), `tin`
+   (Linux, FMA CPU), `split_bam`.
+2. **Exact after excluding non-data lines** (`ExactCompare.exactMatch`, no trimming): `samtools stats`
+   (`#` comments), `featurecounts` per-gene table (`# Program:` line), `qualimap` results (input names;
+   tied junction motifs as sets), `junction_annotation` (Interact BED header, log annotation line),
+   `featurecounts` biotype counts.
+3. **Values RustQC does not reproduce to the last digit** (compared at a tolerance far below any real
+   difference, with everything else exact):
+   - `dupradar` intercept/slope: R fits the logistic curve with `glm()` (iteratively reweighted least squares
+     through LINPACK/BLAS), RustQC with its own solver. They agree to ~2.6e-9 relative on the small dataset,
+     so the values are compared at 1e-8 relative. When no read is duplicate-marked, the fit is degenerate
+     (all duplication rates are 0, so the true intercept and slope are 0) and both tools return a
+     round-off residue of different size (about 1e-10 vs 3e-12); a relative comparison of two numbers
+     that are zero in exact arithmetic is meaningless, so those are compared at 1e-9 absolute.
+   - `junction_saturation`: RSeQC shuffles the splice reads without a seed, so its intermediate sampling
+     points change from run to run; only what is deterministic is compared.
+
+**Reference files are upstream bytes.** `snapshots/` is excluded from the whitespace pre-commit hooks
+and from Prettier, so committed references keep the upstream tools' trailing spaces and final newlines.
+Regenerate a reference with its upstream tool (or the `refgen` CI mode), never by editing it.
 
 ## Updating Snapshots
 
@@ -269,10 +278,10 @@ These tests are kept in their own section and tags:
 | `split_bam`        | RSeQC `split_bam.py` (rRNA and synthetic BED12) | 5 tests       |
 | `featurecounts_mo` | featureCounts `-M`, `-O` and `-M -O`            | 12 tests      |
 
-| Tool                 | Regression method             | Crosscheck method                            | Crosscheck tolerance / notes                                       |
-| -------------------- | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------ |
-| **split_bam**        | `snapshot(lines)`             | **md5 hash** + `textMatch`                   | Byte-identical to `split_bam.py` stdout (rRNA and synthetic BED12) |
-| **featurecounts_mo** | `snapshot({counts, summary})` | Exact `tsvMatch` + `textMatch` + biotype map | Exact gene/biotype counts and summaries for `-M`, `-O`, `-M -O`    |
+| Tool                 | Regression method             | Crosscheck method          | Crosscheck tolerance / notes                                       |
+| -------------------- | ----------------------------- | -------------------------- | ------------------------------------------------------------------ |
+| **split_bam**        | `snapshot(lines)`             | **md5 hash** + `textMatch` | Byte-identical to `split_bam.py` stdout (rRNA and synthetic BED12) |
+| **featurecounts_mo** | `snapshot({counts, summary})` | `exactMatch` + biotype map | Per-gene tables (exon lists included) and summaries exact          |
 
 `tests/rna/rustqc/split_bam.nf.test` and `featurecounts_mo.nf.test` load
 `tests/rna/rustqc/rustqc_extra_args.config`, which appends `params.rustqc_extra_args` (set in each
@@ -354,6 +363,16 @@ Automatically loaded by nf-test via the `libDir` config. Provides:
 
 - **`CompareUtils.extractLines(file, from, to)`**
   Extract a range of lines from a file.
+
+### ExactCompare (`tests/lib/ExactCompare.groovy`)
+
+- **`ExactCompare.exactMatch(actualLines, expectedLines, skipPrefixes=[])`**
+  Line-by-line comparison with nothing trimmed and blank lines kept; only lines starting with one of
+  `skipPrefixes` (version / command-line headers) are dropped from both sides.
+
+- **`ExactCompare.qualimapMotifTiesAsSets(file, lines)`**
+  Qualimap junction-motif rows with each run of tied percentages sorted by name (and masked when the
+  top-11 list cuts through it), for comparing against Qualimap's hash-table order.
 
 ### nf-test Plugins
 
