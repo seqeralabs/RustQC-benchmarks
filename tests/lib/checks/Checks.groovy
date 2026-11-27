@@ -39,11 +39,28 @@ class Checks {
     }
 
     static void crosscheck(def ds, def outDir) {
+        Map<String, Map> report = crosscheckReport(ds, outDir)
+        Map<String, String> failures = report.findAll { tool, r -> r.status == 'fail' }.collectEntries { tool, r -> [(tool): r.message] }
+        if (failures) {
+            throw new AssertionError(
+                "Crosscheck failed for ${failures.size()} tool(s) on dataset '${ds.id}': ${failures.keySet().join(', ')}\n\n" +
+                failures.collect { tool, msg -> "-- ${tool} --\n${msg}" }.join('\n\n')
+            )
+        }
+    }
+
+    /**
+     * The same checks as crosscheck(), reported instead of thrown: tool name -> a map with
+     * `expect` (the dataset's `expect:` entry), `status` (pass | fail | skipped: no assertion
+     * for `upstream_error`) and, for a failure, `message`. Used by checks.FullsizeCompare.
+     */
+    static Map<String, Map> crosscheckReport(def ds, def outDir) {
         def run = new Run(ds, outDir)
-        Map<String, String> failures = [:]
+        Map<String, Map> report = [:]
         selected().each { ToolCheck check ->
+            def expect = ds.expectFor(check.name)
             try {
-                switch (ds.expectFor(check.name)) {
+                switch (expect) {
                     case 'match':
                         check.assertPresent(run)
                         check.crosscheck(run)
@@ -55,18 +72,15 @@ class Checks {
                         check.assertAbsent(run)
                         break
                     case 'upstream_error':
-                        break
+                        report[check.name] = [expect: expect, status: 'skipped']
+                        return
                 }
-            } catch (AssertionError e) {
-                failures[check.name] = e.message
+                report[check.name] = [expect: expect, status: 'pass']
+            } catch (AssertionError | Exception e) {
+                report[check.name] = [expect: expect, status: 'fail', message: e.message ?: e.toString()]
             }
         }
-        if (failures) {
-            throw new AssertionError(
-                "Crosscheck failed for ${failures.size()} tool(s) on dataset '${ds.id}': ${failures.keySet().join(', ')}\n\n" +
-                failures.collect { tool, msg -> "-- ${tool} --\n${msg}" }.join('\n\n')
-            )
-        }
+        return report
     }
 
     /**

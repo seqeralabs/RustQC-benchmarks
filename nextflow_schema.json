@@ -10,7 +10,7 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["bam", "gtf", "outdir"],
+            "required": ["gtf", "outdir"],
             "properties": {
                 "bam": {
                     "type": "string",
@@ -220,6 +220,49 @@
                     "description": "Display hidden parameters in the help message."
                 }
             }
+        },
+        "fullsize_options": {
+            "title": "Full-size run options",
+            "type": "object",
+            "fa_icon": "fas fa-weight-hanging",
+            "description": "Options of --fullsize (tests/DATASETS.md#full-size-tier). The inputs come from tests/datasets.yml.",
+            "hidden": true,
+            "properties": {
+                "fullsize": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Full-size run: align the FASTQ files, run RustQC and the upstream tools on the BAM and compare their outputs (workflows/fullsize.nf)."
+                },
+                "fastq_1": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Read 1 FASTQ (gzipped; local path, URL or S3)."
+                },
+                "fastq_2": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Read 2 FASTQ (gzipped; local path, URL or S3)."
+                },
+                "fasta": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Genome FASTA (gzipped or not). Only needed to build the STAR index."
+                },
+                "star_index_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Where the reusable STAR index is kept, as <star_index_dir>/star/: used when present, built and published here when not. Default: <outdir>/cache/star_index."
+                },
+                "bam_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Where the reusable aligned BAM is kept (<sample>.markdup.sorted.bam, .bai and the infer_experiment report holding its strandedness): used instead of aligning when present, published here when not. Default: <outdir>/cache/bam."
+                },
+                "dataset": {
+                    "type": "string",
+                    "description": "Entry of tests/datasets.yml the comparison uses (its sample name and per-tool expectations). Set by the fullsize profile."
+                }
+            }
         }
     },
     "allOf": [
@@ -231,6 +274,9 @@
         },
         {
             "$ref": "#/$defs/rustqc_options"
+        },
+        {
+            "$ref": "#/$defs/fullsize_options"
         },
         {
             "$ref": "#/$defs/multiqc_options"

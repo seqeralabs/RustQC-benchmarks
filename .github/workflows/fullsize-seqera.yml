@@ -1,0 +1,135 @@
+name: Full-size test on Seqera Platform
+
+# The full-size run (tests/DATASETS.md#full-size-tier): aligns the HCC1395 tumour RNA-seq sample
+# of nf-core/oncoanalyser's full-size test (60.8 million read pairs), runs RustQC and the
+# upstream tools on it and compares them. It runs on Seqera Platform, launched from here as
+# the nf-core full-size tests are (seqeralabs/action-tower-launch); the run takes hours, so this
+# workflow only launches it and links to it. The pipeline fails, and so does the run on
+# Platform, if RustQC differs from the upstream tools; the report is in <outdir>/report/.
+#
+# Run it by hand before each RustQC release (Actions > Full-size test on Seqera Platform > Run
+# workflow). It has no schedule, pull_request or push trigger, and the job runs only in
+# seqeralabs/RustQC-benchmarks, so pull requests and forks never start it or see its secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "Pipeline revision to run (branch, tag or commit; default: this workflow's)"
+        type: string
+        default: ""
+
+# One launch at a time per revision; never cancel a launch half way through
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.revision || github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DATASET: hs_hcc1395_wts_fullsize
+  # Bump to start with a new STAR index and BAM (their S3 directories also change with the
+  # inputs and the alignment code, see "Cache keys")
+  FULLSIZE_CACHE_VERSION: "v1"
+
+jobs:
+  launch:
+    name: Launch on Seqera Platform
+    if: ${{ github.repository == 'seqeralabs/RustQC-benchmarks' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.13"
+
+      # The inputs come from tests/datasets.yml. The STAR index is reused from S3 while the genome,
+      # annotation and STAR module are unchanged; the aligned BAM while the FASTQ files, genome,
+      # annotation and the alignment (code, arguments, tool versions) are. A change of any of
+      # them changes the directory, so the next run builds anew.
+      - name: Parameters and cache keys
+        id: plan
+        env:
+          REVISION_INPUT: ${{ github.event.inputs.revision }}
+          BUCKET: ${{ vars.AWS_S3_BUCKET }}
+          ALIGN_CODE_HASH: ${{ hashFiles('subworkflows/local/align_markdup/**', 'workflows/fullsize.nf', 'conf/fullsize.config', 'modules/nf-core/star/**', 'modules/nf-core/picard/markduplicates/**', 'modules/nf-core/samtools/sort/**', 'modules/nf-core/samtools/index/**', 'modules/nf-core/gunzip/**', 'modules/nf-core/rseqc/inferexperiment/**', 'modules/local/gtf2bed/**') }}
+          STAR_CODE_HASH: ${{ hashFiles('modules/nf-core/star/genomegenerate/**', 'modules/nf-core/gunzip/**') }}
+        run: |
+          python -m pip install pyyaml==6.0.4
+          revision="${REVISION_INPUT:-$GITHUB_SHA}"
+          bam_inputs=$(python tests/fetch_testdata.py --fingerprint --sets fullsize --datasets "$DATASET" --inputs fastq_1,fastq_2,fasta,gtf)
+          index_inputs=$(python tests/fetch_testdata.py --fingerprint --sets fullsize --datasets "$DATASET" --inputs fasta,gtf)
+          bam_key="${FULLSIZE_CACHE_VERSION}-${bam_inputs:0:12}-${ALIGN_CODE_HASH:0:12}"
+          index_key="${FULLSIZE_CACHE_VERSION}-${index_inputs:0:12}-${STAR_CODE_HASH:0:12}"
+          root="s3://${BUCKET}/rustqc-benchmarks"
+          outdir="${root}/fullsize/results-${revision}"
+          params=$(python tests/fetch_testdata.py --params-json "$DATASET" | jq -c \
+            --arg outdir "$outdir" \
+            --arg index "${root}/cache/star_index/${index_key}" \
+            --arg bam "${root}/cache/bam/${bam_key}" \
+            '. + {outdir: $outdir, star_index_dir: $index, bam_dir: $bam}')
+          {
+            echo "revision=$revision"
+            echo "outdir=$outdir"
+            echo "workdir=${root}/work/fullsize-${revision}"
+            echo "bam_key=$bam_key"
+            echo "index_key=$index_key"
+            echo "parameters=$params"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      # Resuming a launch (Platform: the run's Resume button) reuses this work directory, which
+      # is named after the revision. Same as the nf-core full-size tests.
+      - name: Launch the run via Seqera Platform
+        id: launch
+        uses: seqeralabs/action-tower-launch@9856f1ae20c8b02884733f79b7cd0e3ea5d2bdab # v2.4.0
+        with:
+          workspace_id: ${{ vars.TOWER_WORKSPACE_ID }}
+          access_token: ${{ secrets.TOWER_ACCESS_TOKEN }}
+          compute_env: ${{ vars.TOWER_COMPUTE_ENV }}
+          revision: ${{ steps.plan.outputs.revision }}
+          workdir: ${{ steps.plan.outputs.workdir }}
+          run_name: rustqc-benchmarks-fullsize-${{ github.run_id }}
+          profiles: fullsize
+          nextflow_config: |
+            process.errorStrategy = { task.exitStatus in ((130..145) + 104 + (175..177)) ? 'retry' : 'finish' }
+          parameters: |
+            ${{ steps.plan.outputs.parameters }}
+          # The run takes hours (GitHub-hosted jobs stop at 6): it is not awaited here. A failed
+          # comparison fails the run on Platform.
+          wait: false
+
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          RUN_URL: ${{ steps.launch.outputs.workflowUrl }}
+          OUTDIR: ${{ steps.plan.outputs.outdir }}
+          REVISION: ${{ steps.plan.outputs.revision }}
+          BAM_KEY: ${{ steps.plan.outputs.bam_key }}
+          INDEX_KEY: ${{ steps.plan.outputs.index_key }}
+        run: |
+          {
+            echo "## Full-size run on Seqera Platform"
+            echo
+            if [ -n "$RUN_URL" ]; then
+              echo "- Run: $RUN_URL"
+            else
+              echo "- The run was not launched: see the log of the launch step."
+            fi
+            echo "- Revision: \`$REVISION\`"
+            echo "- Report when it finishes: \`$OUTDIR/report/comparison.md\` (PASS or FAIL per tool; the run itself fails on a FAIL)"
+            echo "- STAR index key: \`$INDEX_KEY\`, BAM key: \`$BAM_KEY\` (reused from S3 when already built)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: ${{ always() }}
+        with:
+          name: Seqera Platform launch log
+          path: |
+            tower_action_*.log
+            tower_action_*.json
+          if-no-files-found: ignore

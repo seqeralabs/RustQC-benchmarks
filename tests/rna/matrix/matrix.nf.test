@@ -20,7 +20,8 @@ nextflow_process {
     tag "rustqc"
     tag "rna"
 
-    Datasets.ofClass('content').each { ds ->
+    // The full-size datasets have no committed references or snapshot (workflows/fullsize.nf)
+    Datasets.ofClass('content').findAll { it.set != 'fullsize' }.each { ds ->
 
         test(ds.id) {
 
