@@ -70,14 +70,13 @@ nextflow_process {
             def actualFile = "${rustqcDir}/rseqc/read_distribution/test.read_distribution.txt"
             assert path(actualFile).exists() : "read_distribution.txt not found in: ${rustqcDir}"
 
-            // Measured: every line and value is identical to RSeQC read_distribution.py
-            // (run on the GTF2BED-derived BED, as the pipeline does). The files are not
-            // byte-identical only because trailing whitespace was stripped from the
-            // committed reference; textMatch trims each line and compares exactly.
-            CompareUtils.textMatch(
-                path(actualFile).readLines(),
-                path("${projectDir}/snapshots/rna/small/rseqc/read_distribution/read_distribution.txt").readLines()
-            )
+            // Byte-identical to RSeQC read_distribution.py (run on the GTF2BED-derived BED,
+            // as the pipeline does), trailing spaces of its table rows included.
+            def upstreamFile = "${projectDir}/snapshots/rna/small/rseqc/read_distribution/read_distribution.txt"
+            if (path(actualFile).md5 != path(upstreamFile).md5) {
+                ExactCompare.exactMatch(path(actualFile).readLines(), path(upstreamFile).readLines())
+                assert false : "read_distribution.txt differs from upstream in line endings only"
+            }
         }
     }
 }

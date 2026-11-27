@@ -19,7 +19,7 @@ nextflow_process {
                     file("${projectDir}/test-data/rna/small/test.bam", checkIfExists: true),
                     file("${projectDir}/test-data/rna/small/test.bam.bai", checkIfExists: true)
                 ])
-                input[1] = file("${projectDir}/test-data/rna/small/chr6.bed", checkIfExists: true)
+                input[1] = file("${projectDir}/test-data/rna/small/chr6.eautils.bed", checkIfExists: true)
                 """
             }
         }
@@ -32,31 +32,13 @@ nextflow_process {
             assert path(summaryFile).exists()
             assert path(xlsFile).exists()
 
-            // Round TIN floats to 10 decimal places to absorb last-digit
-            // floating-point differences across platforms (macOS vs Linux)
-            def roundFloat = { val ->
-                try { String.format("%.10f", val.toDouble()) } catch (e) { val }
-            }
-
-            // Sort xls by geneID (col 0) for stable comparison
-            // Only round TIN column (col 4), leave integer columns intact
-            def xlsLines = path(xlsFile).readLines()
-            def header = xlsLines[0]
-            def sorted = xlsLines.drop(1).sort { it.split('\t')[0] }.collect { line ->
-                def cols = line.split('\t')
-                [cols[0], cols[1], cols[2], cols[3], roundFloat(cols[4])].join('\t')
-            }
-
-            def summaryLines = path(summaryFile).readLines()
-            def roundedSummary = [summaryLines[0]] + summaryLines.drop(1).collect { line ->
-                def cols = line.split('\t')
-                [cols[0], roundFloat(cols[1]), roundFloat(cols[2]), roundFloat(cols[3])].join('\t')
-            }
-
-            snapshot(
-                "summary": roundedSummary,
-                "tin_xls": [header] + sorted
-            ).match("tin_output")
+            // Byte-exact against the committed reference. The reference was made with this
+            // module on an FMA-capable CPU (see "Reference platform" in tests/README.md), on the BED
+            // that nf-core/rnaseq >= 3.25 builds with eautils/gtf2bed from chr6.gtf.gz; rows follow
+            // the BED order.
+            def refDir = "${projectDir}/snapshots/rna/small/rseqc/tin"
+            assert path(summaryFile).md5 == path("${refDir}/test.summary.txt").md5 : "TIN summary differs from the reference"
+            assert path(xlsFile).md5     == path("${refDir}/test.tin.xls").md5     : "TIN xls differs from the reference"
         }
     }
 }
