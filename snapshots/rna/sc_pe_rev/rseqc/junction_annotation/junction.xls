@@ -1,0 +1,6 @@
+chrom	intron_st(0-based)	intron_end(1-based)	read_count	annotation
+I	50303	139494	1	 complete_novel
+I	142253	142619	3	 annotated
+I	160160	162706	2	 complete_novel
+I	160860	172753	1	 complete_novel
+I	172768	173481	1	 complete_novel

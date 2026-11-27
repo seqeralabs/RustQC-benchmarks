@@ -1,0 +1,299 @@
+# Test dataset manifest: the single list of inputs the dataset-driven nf-tests run on.
+#
+# Read by tests/lib/datasets/Datasets.groovy. One entry per dataset; the matrix test
+# (tests/rna/matrix/matrix.nf.test) and the release-regression test
+# (tests/rna/regression/release.nf.test) each generate one test per entry.
+#
+# Inputs
+#   Each input has a `url` (preferred: nf-core/test-datasets at a pinned commit SHA, so the
+#   bytes can never change under a test) and/or a `local` path relative to the repository root.
+#   Set RUSTQC_TESTDATA=local to use the `local` copies instead of downloading (offline runs,
+#   or if staging remote files ever breaks). Inputs with only a `local` path are not hosted in
+#   nf-core yet. `md5` records the expected checksum (verified when the entry was added).
+#
+# Per-dataset keys
+#   class       content (has its own upstream references) | equivalence | option (later phases)
+#   set         small (default: runs on every PR) | large (runs on main, releases and on demand;
+#               see tests/DATASETS.md). The set is also an nf-test tag.
+#   sample      RustQC --sample-name, i.e. the output file prefix (default: the dataset id)
+#   meta        the [meta] map passed to RUSTQC_RNA: single_end, strandedness
+#   rustqc      RUSTQC_RNA params: skip_dup_check, biotype_attribute, rustqc_config
+#   references  dir:      upstream reference outputs, relative to the repository root
+#               bam_name: basename of the BAM the references were generated from. Outputs that
+#                         echo the BAM name (featureCounts headers, TIN, qualimap) are
+#                         normalised to it before comparing.
+#   expect      per-tool expectation, default `match`:
+#                 match           compare against the upstream reference
+#                 regression      no upstream equivalent; snapshot/release regression only
+#                 absent          RustQC must not write this tool's outputs (e.g. inner_distance on SE)
+#                 upstream_error  the upstream tool fails on this input; no reference to compare
+#   tags        extra nf-test tags (axes of the matrix: layout, strand, annotation flavour, ...)
+
+sources:
+  # nf-core/test-datasets `modules` branch, pinned by commit SHA (branch head on 2026-11-24).
+  nfcore_modules: https://raw.githubusercontent.com/nf-core/test-datasets/65d3096343daeb3ae88795314c481d15b89284c5/data
+  # nf-core/test-datasets `rnasplice` branch, pinned by commit SHA (branch head on 2026-11-25).
+  nfcore_rnasplice: https://raw.githubusercontent.com/nf-core/test-datasets/15ee35f8b36259b4b25c28ad5df6efa07e58b2a5
+
+# RustQC release-regression check (tests/rna/regression/release.nf.test): the current RustQC
+# (params.rustqc_image) and the baseline release below run on every dataset and their outputs
+# are compared. Bump `baseline_image` after each RustQC release; the image tags are listed by
+#   gh api /orgs/seqeralabs/packages/container/rustqc/versions
+# Override for one run with RUSTQC_BASELINE_IMAGE=<image>.
+#
+# Outputs are compared exactly except for plots, CITATIONS.md and version/command-line
+# header lines (tests/lib/checks/ReleaseRegression.groovy). Intentional
+# output changes since the baseline go in `accepted_differences` (glob relative to rustqc/,
+# `{sample}` allowed; optional `datasets: [id, ...]` to limit an entry). They are reported
+# but do not fail. Empty this list when baseline_image is bumped.
+release_regression:
+  baseline_image: ghcr.io/seqeralabs/rustqc:v0.2.1
+  accepted_differences:
+    # RustQC #194 and #195 (TIN follows RSeQC's tin.py: pileup coverage, gtf2bed row order, number formatting)
+    - path: rseqc/tin/{sample}.tin.xls
+      reason: TIN values and row order changed to match tin.py (RustQC #194, #195)
+    - path: rseqc/tin/{sample}.summary.txt
+      reason: TIN summary values changed to match tin.py (RustQC #194, #195)
+    # RustQC #193 (exons of a gene are listed in Subread featureCounts' order)
+    - path: featurecounts/{sample}.featureCounts.tsv
+      reason: exons are listed in Subread featureCounts' order (RustQC #193)
+    # RustQC #198 (samtools stats follows samtools 1.22.1: coverage histogram, error rate, GC-depth
+    # percentiles and the quality-columns comment). Identical on hs_chr6_pe_rev and hs_chr22_pe_fwd.
+    - path: samtools/{sample}.stats
+      datasets:
+        [hs_chrXsub_pe_unstr, sc_pe_rev, sc_se_rev, hs_ribo_chr19_22_se_fwd, hs_chrX_pe_unstr, hs_ribo_chr20_se_fwd]
+      reason: samtools stats lines changed to match samtools 1.22.1 (RustQC #198)
+    # RustQC #201 (the pdf() call names the PDF by sample name only, as RSeQC does)
+    - path: rseqc/junction_saturation/{sample}.junctionSaturation_plot.r
+      reason: the pdf() line names the PDF by sample name only (RustQC #201)
+    # RustQC #203 (the MultiQC files are written as the nf-core dupradar module writes them)
+    - path: dupradar/{sample}_dup_intercept_mqc.txt
+      reason: MultiQC general-stats header written as the nf-core dupradar module does (RustQC #203)
+    - path: dupradar/{sample}_duprateExpDensCurve_mqc.txt
+      reason: MultiQC line-graph header and layout written as the nf-core dupradar module does (RustQC #203)
+    # RustQC #204 (Qualimap number formatting, read selection and 5'-3' bias)
+    - path: qualimap/rnaseq_qc_results.txt
+      reason: Qualimap 2.3 number formatting, read selection and 5'-3' bias (RustQC #204)
+    - path: qualimap/qualimapReport.html
+      reason: Qualimap 2.3 number formatting, read selection and 5'-3' bias (RustQC #204)
+    - path: qualimap/raw_data_qualimapReport/coverage_profile_along_genes_*.txt
+      datasets: [hs_chr22_pe_fwd]
+      reason: Qualimap 2.3 number formatting in the coverage profiles (RustQC #204)
+
+datasets:
+  - id: hs_chr6_pe_rev
+    class: content
+    description: >-
+      Human GRCh37 (Ensembl names) chr6, paired-end, reverse-stranded RNA-seq. SRR5665260,
+      STAR 2.6.1d, Picard MarkDuplicates (6,097 duplicates). 25 @SQ lines but reads on `6`
+      only; 3,266 secondary, no unmapped/supplementary/QC-fail reads. Same bytes as the
+      original harness copy in test-data/rna/small/.
+    sample: test
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.chr6.bam"
+        local: test-data/rna/small/test.bam
+        md5: 1c372eadaf8efcb62763c09b40c52bc5
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.chr6.bam.bai"
+        local: test-data/rna/small/test.bam.bai
+        md5: 48bcd3c7c9e515b26e9f17ca6892f705
+      gtf:
+        # Ensembl GRCh37 chr6 annotation. Not in nf-core/test-datasets yet: keep the in-repo
+        # copy until it is hosted there, then add a pinned `url`.
+        local: test-data/rna/small/chr6.gtf.gz
+        md5: 2b78ac36eac193adaa0bb1f3d8cf8b67
+    meta:
+      single_end: false
+      strandedness: reverse
+    rustqc:
+      # The BAM is duplicate-marked, so the duplicate gate runs and must pass.
+      skip_dup_check: false
+    references:
+      dir: snapshots/rna/small
+      bam_name: test.bam
+    expect: {}
+    tags: [pe, reverse, ensembl, grch37, single_contig, picard_dups]
+
+  - id: hs_chr22_pe_fwd
+    description: >-
+      Human GRCh38 chr22 slice (`chr22`, 40 kb), paired-end 2x150, STAR 2.7.10a. The nf-core
+      modules RNA test BAM: 8,828 records, 1,786 secondary (many multi-mappers), not
+      duplicate-marked. The matching annotation has only 6 genes, so most reads are intergenic.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.bam"
+        md5: ed988b6b245e68c27d0a4bc6bdecfa94
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/illumina/bam/test.rna.paired_end.sorted.bam.bai"
+        md5: 34b8f1c083ecbc7af69f7ebfc3df0e97
+      gtf:
+        url: "{nfcore_modules}/genomics/homo_sapiens/genome/genome.gtf"
+        md5: 50fc877b1c53b36b3b413aff88bda48c
+    meta:
+      single_end: false
+      strandedness: forward
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_chr22_pe_fwd
+    expect:
+      # dupRadar (R) exits with status 1 on this input (6 genes, most reads intergenic).
+      dupradar: upstream_error
+    tags: [pe, forward, ensembl, grch38, chr_prefix, multimappers]
+
+  - id: hs_chrXsub_pe_unstr
+    description: >-
+      Human GRCh37 chrX slice (`X`, 3.4 Mb), paired-end 2x75, unstranded (GEUVADIS ERR188383),
+      STAR 2.7.11b. 8,120 records (120 secondary), not duplicate-marked. From the nf-core
+      rnasplice test data; the annotation has transcript and exon records but no gene records.
+    inputs:
+      bam:
+        url: "{nfcore_rnasplice}/chrX_subset/testdata/ERR188383.Aligned.out.bam"
+        md5: 45b5b0c392e4b814194d1b3cf8a29bd1
+      bai:
+        url: "{nfcore_rnasplice}/chrX_subset/testdata/ERR188383.Aligned.out.bam.bai"
+        md5: 843d3a32a33ebbec933591f8907b1edd
+      gtf:
+        url: "{nfcore_rnasplice}/chrX_subset/reference/genes_chrX.gtf"
+        md5: edc6db07a5f0198252782ec4fd16e18a
+    meta:
+      single_end: false
+      strandedness: unstranded
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_chrXsub_pe_unstr
+    expect: {}
+    tags: [pe, unstranded, ensembl, grch37, no_gene_records]
+
+  - id: sc_pe_rev
+    description: >-
+      S. cerevisiae chr I + a GFP transgene contig, paired-end (reads up to 101 bp),
+      reverse-stranded (GSE110004 WT_REP2, the nf-core/rnaseq test data), STAR 2.7.11b,
+      downsampled to 1,872 records. Few introns; not duplicate-marked.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.paired_end.sorted.bam"
+        md5: bdbc872dd134910dfb5c6e6cf1dd77fd
+      bai:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.paired_end.sorted.bam.bai"
+        md5: 890b05a82958be5e18137ee789175012
+      gtf:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/genome_gfp.gtf"
+        md5: c98b12c302f15731bfc36bcf297cfe28
+    meta:
+      single_end: false
+      strandedness: reverse
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/sc_pe_rev
+    expect: {}
+    tags: [pe, reverse, ensembl, yeast, transgene, no_gene_records]
+
+  - id: sc_se_rev
+    description: >-
+      S. cerevisiae chr I + a GFP transgene contig, single-end (reads up to 101 bp),
+      reverse-stranded (GSE110004 RAP1_UNINDUCED_REP1, the nf-core/rnaseq test data),
+      STAR 2.7.11b, downsampled to 1,986 records. Not duplicate-marked.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.single_end.sorted.bam"
+        md5: 8effceb3f2dacbbcbe9c468e6e5b1130
+      bai:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/illumina/bam/test.single_end.sorted.bam.bai"
+        md5: 80eabc904d193e5215f9041ba9267ba6
+      gtf:
+        url: "{nfcore_modules}/genomics/eukaryotes/saccharomyces_cerevisiae/genome_gfp.gtf"
+        md5: c98b12c302f15731bfc36bcf297cfe28
+    meta:
+      single_end: true
+      strandedness: reverse
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/sc_se_rev
+    expect: {}
+    tags: [se, reverse, ensembl, yeast, transgene, no_gene_records]
+
+  - id: hs_ribo_chr19_22_se_fwd
+    description: >-
+      Human GRCh38 (Ensembl names, 194 @SQ lines) Ribo-seq, single-end 20-42 nt,
+      forward-stranded (GSE182201 SRX11780885), STAR, reads on 19 and 22 only, filtered to
+      protein-coding loci and downsampled to 82,655 records. Ensembl 111 protein-coding
+      annotation of chr19 + chr22. From the nf-core gedi/price module test data.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/price/bams/SRX11780885.chr19_22.ds50.bam"
+        md5: 58adf889c3f768c1be1de0084464f724
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/price/bams/SRX11780885.chr19_22.ds50.bam.bai"
+        md5: 75f89c62821e9a620572fab98751c5fd
+      gtf:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/price/Homo_sapiens.GRCh38.111_chr19_22.pc.gtf.gz"
+        md5: 45e31f7ff74b62dd60a51056623eeca1
+    meta:
+      single_end: true
+      strandedness: forward
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_ribo_chr19_22_se_fwd
+    expect: {}
+    tags: [se, forward, ensembl, grch38, riboseq, short_reads, many_contigs]
+
+  # ── large: main, releases and on demand only (RUSTQC_DATASET_SETS=large) ────────────────
+
+  - id: hs_chrX_pe_unstr
+    set: large
+    description: >-
+      Human GRCh37 chrX (`X`, full length), paired-end 2x75, unstranded (GEUVADIS ERR188383),
+      STAR 2.7.10a. 100,826 records (2,094 secondary), not duplicate-marked. Full Ensembl chrX
+      annotation (transcript and exon records, no gene records). From the nf-core rnasplice
+      test data.
+    inputs:
+      bam:
+        url: "{nfcore_rnasplice}/testdata/ERR188383.Aligned.out.bam"
+        md5: b0f87a0f7490de44b23c8fb7e2400297
+      bai:
+        url: "{nfcore_rnasplice}/testdata/ERR188383.Aligned.out.bam.bai"
+        md5: 710b133442903288f0e0614dea57d056
+      gtf:
+        url: "{nfcore_rnasplice}/reference/genes_chrX.gtf"
+        md5: 326e7a503309e8ff500b2d8f693a65d0
+    meta:
+      single_end: false
+      strandedness: unstranded
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_chrX_pe_unstr
+    expect: {}
+    tags: [pe, unstranded, ensembl, grch37, no_gene_records, full_chromosome]
+
+  - id: hs_ribo_chr20_se_fwd
+    set: large
+    description: >-
+      Human GRCh38 chr20 (`20`, full length) Ribo-seq, single-end 20-29 nt, forward-stranded
+      (GSE182201 SRX11780887), STAR. 601,681 records, 104,324 secondary. Full Ensembl 111 chr20
+      annotation (34 MB, all biotypes). From the nf-core riboseq test data.
+    inputs:
+      bam:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/aligned_reads/SRX11780887_chr20.bam"
+        md5: dfbfaef0142f92bc32cc046c70b4ce6d
+      bai:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/aligned_reads/SRX11780887_chr20.bam.bai"
+        md5: 6f9ee4ee9966f17c6109f0b75c641e3b
+      gtf:
+        url: "{nfcore_modules}/genomics/homo_sapiens/riboseq_expression/Homo_sapiens.GRCh38.111_chr20.gtf"
+        md5: 3721e04433a30777a8ff43a4908afaab
+    meta:
+      single_end: true
+      strandedness: forward
+    rustqc:
+      skip_dup_check: true
+    references:
+      dir: snapshots/rna/hs_ribo_chr20_se_fwd
+    expect: {}
+    tags: [se, forward, ensembl, grch38, riboseq, short_reads, multimappers, full_chromosome]

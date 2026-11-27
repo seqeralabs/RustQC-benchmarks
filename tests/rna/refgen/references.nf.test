@@ -1,0 +1,48 @@
+import checks.Refgen
+import datasets.Datasets
+
+// Upstream references: run the upstream tools (main.nf --run_upstream, no RustQC) on a dataset
+// and copy their outputs into its references.dir (checks.Refgen), under the names the checks
+// read. This is how the references of the manifest datasets were made.
+//
+// No tests are generated unless RUSTQC_REFGEN is set, so normal runs (and `--tag` selections)
+// never include these. Generate references with, e.g.
+//   RUSTQC_REFGEN=1 RUSTQC_DATASETS=sc_pe_rev nf-test test --tag refgen
+//   RUSTQC_REFGEN=1 RUSTQC_DATASET_SETS=all nf-test test --tag refgen   # every dataset
+// or from GitHub Actions with the "Generate upstream references" workflow, which uploads them
+// as an artifact. Upstream processes that fail are ignored (refgen.config) and reported, so
+// the dataset can mark that tool `upstream_error`.
+nextflow_pipeline {
+
+    name "Upstream references"
+    script "../../../main.nf"
+    config "./refgen.config"
+
+    tag "refgen"
+
+    Datasets.forRefgen().each { ds ->
+
+        test(ds.id) {
+
+            tag "ds_${ds.id}".toString()
+
+            when {
+                params {
+                    bam          = ds.inputs.bam
+                    bai          = ds.inputs.bai
+                    gtf          = ds.inputs.gtf
+                    sample_id    = ds.sample
+                    paired       = !ds.meta.single_end
+                    strandedness = ds.meta.strandedness ?: 'unstranded'
+                    run_rustqc   = false
+                    run_upstream = true
+                    outdir       = "$outputDir"
+                }
+            }
+
+            then {
+                Refgen.export(ds, params.outdir)
+            }
+        }
+    }
+}

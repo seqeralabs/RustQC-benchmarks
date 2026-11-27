@@ -30,6 +30,8 @@ nf-test test --tag bam_stat
 nf-test test tests/rna/rustqc/bam_stat.nf.test
 ```
 
+The dataset matrix, the release regression, test sets and the test-data cache are described in [DATASETS.md](DATASETS.md).
+
 ## Test Architecture
 
 ### Directory Structure

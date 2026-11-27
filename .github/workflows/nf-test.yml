@@ -7,12 +7,22 @@ on:
       - "**/*.md"
       - "**/*.png"
       - "**/*.svg"
+  # Pushes to main and releases also run the `large` dataset set (tests/DATASETS.md)
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "**/meta.yml"
+      - "**/*.md"
+      - "**/*.png"
+      - "**/*.svg"
   release:
     types: [published]
   workflow_dispatch:
     inputs:
       test_mode:
-        description: "Which tests to run"
+        description: "Which tests to run (large: only the large dataset set)"
         type: choice
         default: "all"
         options:
@@ -20,11 +30,22 @@ on:
           - regression
           - crosscheck
           - upstream
+          - matrix
+          - release_regression
+          - large
+          - refgen
+      datasets:
+        description: "Only these dataset ids from tests/datasets.yml, comma-separated (empty: all)"
+        type: string
+        default: ""
 
-# Cancel if a newer run is started
+# Cancel if a newer run is started (manual runs only cancel runs of the same test mode)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.inputs.test_mode }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,6 +57,10 @@ env:
   # Map workflow_dispatch test_mode to nf-test --tag value
   # "all" means no tag filter (run everything)
   NFT_TAG: ${{ github.event.inputs.test_mode != 'all' && github.event.inputs.test_mode || '' }}
+  # Bump to drop the cached test data (the cache key also changes with tests/datasets.yml)
+  TESTDATA_CACHE_VERSION: "v1"
+  # Narrow the dataset-driven tests to some datasets (workflow_dispatch input)
+  RUSTQC_DATASETS: ${{ github.event.inputs.datasets }}
 
 jobs:
   nf-test-changes:
@@ -44,8 +69,41 @@ jobs:
       - "ubuntu-latest"
     outputs:
       shard: ${{ steps.set-shards.outputs.shard }}
-      total_shards: ${{ steps.set-shards.outputs.total_shards }}
+      total_shards: ${{ steps.set-shards.outputs.total_shards || '0' }}
+      run_small: ${{ steps.plan.outputs.run_small }}
+      run_large: ${{ steps.plan.outputs.run_large }}
+      run_refgen: ${{ steps.plan.outputs.run_refgen }}
+      testdata_sets: ${{ steps.testdata.outputs.sets }}
     steps:
+      # Which dataset sets run (tests/DATASETS.md):
+      #   small  every event except pushes to main and the `large` dispatch mode
+      #   large  pushes to main, releases and the `large` dispatch mode;
+      #          never on pull requests
+      #   refgen only the `refgen` dispatch mode: upstream references as an artifact
+      - name: Plan test sets
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TEST_MODE: ${{ github.event.inputs.test_mode }}
+        run: |
+          run_small=true
+          run_large=false
+          run_refgen=false
+          case "$EVENT_NAME" in
+            push) run_small=false; run_large=true ;;
+            release) run_large=true ;;
+            workflow_dispatch)
+              case "$TEST_MODE" in
+                large) run_small=false; run_large=true ;;
+                refgen) run_small=false; run_refgen=true ;;
+              esac ;;
+          esac
+          {
+            echo "run_small=$run_small"
+            echo "run_large=$run_large"
+            echo "run_refgen=$run_refgen"
+          } | tee -a "$GITHUB_OUTPUT"
+
       - name: Clean Workspace # Purge the workspace in case it's running on a self-hosted runner
         run: |
           ls -la ./
@@ -58,6 +116,7 @@ jobs:
 
       - name: get number of shards
         id: set-shards
+        if: ${{ steps.plan.outputs.run_small == 'true' }}
         uses: ./.github/actions/get-shards
         env:
           NFT_VER: ${{ env.NFT_VER }}
@@ -70,12 +129,67 @@ jobs:
           echo ${{ steps.set-shards.outputs.shard }}
           echo ${{ steps.set-shards.outputs.total_shards }}
 
+      - name: Test data sets to download
+        id: testdata
+        env:
+          RUN_SMALL: ${{ steps.plan.outputs.run_small }}
+          RUN_LARGE: ${{ steps.plan.outputs.run_large }}
+          TOTAL_SHARDS: ${{ steps.set-shards.outputs.total_shards || '0' }}
+        run: |
+          sets=()
+          [[ "$RUN_SMALL" == "true" && "$TOTAL_SHARDS" != "0" ]] && sets+=('"small"')
+          [[ "$RUN_LARGE" == "true" ]] && sets+=('"large"')
+          echo "sets=[$(IFS=,; echo "${sets[*]}")]" | tee -a "$GITHUB_OUTPUT"
+
+  # Download the inputs of each dataset set once (tests/fetch_testdata.py) and cache them, keyed
+  # on the manifest. Test jobs restore the cache and point RUSTQC_TESTDATA_DIR at it; inputs
+  # missing from it (or a failed download job) fall back to their nf-core URLs.
+  download-testdata:
+    name: "download test data (${{ matrix.set }})"
+    needs: [nf-test-changes]
+    if: ${{ needs.nf-test-changes.outputs.testdata_sets != '[]' && needs.nf-test-changes.outputs.testdata_sets != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        set: ${{ fromJson(needs.nf-test-changes.outputs.testdata_sets) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Cached files are only used if they have the md5 recorded in tests/datasets.yml
+      # (Datasets.cachedCopy), so a poisoned cache cannot change a test's inputs.
+      - name: Restore test data cache
+        id: cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0 # zizmor: ignore[cache-poisoning]
+        with:
+          path: .testdata
+          key: testdata-${{ matrix.set }}-${{ env.TESTDATA_CACHE_VERSION }}-${{ hashFiles('tests/datasets.yml') }}
+
+      - name: Set up Python
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Download test data
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        env:
+          TESTDATA_SET: ${{ matrix.set }}
+        run: |
+          python -m pip install pyyaml==6.0.4
+          python tests/fetch_testdata.py --out .testdata --sets "$TESTDATA_SET"
+
+      - name: Test data size
+        run: du -sh .testdata
+
   nf-test:
     name: "${{ matrix.profile }} | ${{ matrix.NXF_VER }} | ${{ matrix.shard }}/${{ needs.nf-test-changes.outputs.total_shards }}"
-    needs: [nf-test-changes]
-    if: ${{ needs.nf-test-changes.outputs.total_shards != '0' }}
-    runs-on: # use GitHub runners
-      - "ubuntu-latest"
+    needs: [nf-test-changes, download-testdata]
+    # Also when download-testdata failed or was skipped: inputs then come from their URLs
+    if: ${{ !cancelled() && needs.nf-test-changes.result == 'success' && needs.nf-test-changes.outputs.run_small == 'true' && needs.nf-test-changes.outputs.total_shards != '0' }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -100,6 +214,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+
+      - name: Restore test data cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .testdata
+          key: testdata-small-${{ env.TESTDATA_CACHE_VERSION }}-${{ hashFiles('tests/datasets.yml') }}
+
+      - name: Use cached test data
+        run: |
+          if [ -d .testdata ]; then
+            echo "RUSTQC_TESTDATA_DIR=$GITHUB_WORKSPACE/.testdata" >> "$GITHUB_ENV"
+          else
+            echo "No cached test data: inputs are staged from their URLs"
+          fi
 
       - name: Run nf-test
         id: run_nf_test
@@ -150,8 +278,92 @@ jobs:
           name: pr-comment-fragment-${{ strategy.job-index }}
           path: pr-comment-fragment/
 
+  # The `large` dataset set (tests/DATASETS.md): RustQC matrix crosschecks and the release
+  # regression on bigger inputs. Docker only, one Nextflow version. Never on pull requests.
+  nf-test-large:
+    name: "large | docker | 25.10.4"
+    needs: [nf-test-changes, download-testdata]
+    if: ${{ !cancelled() && needs.nf-test-changes.result == 'success' && needs.nf-test-changes.outputs.run_large == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NXF_ANSI_LOG: false
+      RUSTQC_DATASET_SETS: large
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Restore test data cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .testdata
+          key: testdata-large-${{ env.TESTDATA_CACHE_VERSION }}-${{ hashFiles('tests/datasets.yml') }}
+
+      - name: Use cached test data
+        run: |
+          if [ -d .testdata ]; then
+            echo "RUSTQC_TESTDATA_DIR=$GITHUB_WORKSPACE/.testdata" >> "$GITHUB_ENV"
+          else
+            echo "No cached test data: inputs are staged from their URLs"
+          fi
+
+      - name: Run nf-test
+        uses: ./.github/actions/nf-test
+        env:
+          NFT_WORKDIR: ${{ env.NFT_WORKDIR }}
+          NXF_VERSION: "25.10.4"
+        with:
+          profile: docker
+          shard: 1
+          total_shards: 1
+          tags: large
+
+  # `refgen` dispatch mode: run the upstream tools on the datasets (all, or the `datasets`
+  # input) and upload their reference files, laid out as in the repository, as the
+  # `upstream-references` artifact (tests/rna/refgen/references.nf.test). Unpack it at the
+  # repository root and commit the files to add or refresh a dataset's references.
+  refgen:
+    name: "refgen | docker | 25.10.4"
+    needs: [nf-test-changes]
+    if: ${{ needs.nf-test-changes.outputs.run_refgen == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NXF_ANSI_LOG: false
+      RUSTQC_REFGEN: "1"
+      RUSTQC_DATASET_SETS: all
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set the references output directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/upstream-references"
+          echo "RUSTQC_REFGEN_OUT=$RUNNER_TEMP/upstream-references" >> "$GITHUB_ENV"
+
+      - name: Run nf-test
+        uses: ./.github/actions/nf-test
+        env:
+          NFT_WORKDIR: ${{ env.NFT_WORKDIR }}
+          NXF_VERSION: "25.10.4"
+        with:
+          profile: docker
+          shard: 1
+          total_shards: 1
+          tags: refgen
+
+      - name: Upload references
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: upstream-references
+          path: ${{ runner.temp }}/upstream-references/
+          if-no-files-found: error
+
   confirm-pass:
-    needs: [nf-test]
+    needs: [nf-test, nf-test-large, refgen]
     if: always()
     runs-on: # use GitHub runners
       - "ubuntu-latest"

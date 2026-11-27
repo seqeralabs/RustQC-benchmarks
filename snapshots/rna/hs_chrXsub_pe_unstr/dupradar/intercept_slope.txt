@@ -1,0 +1,2 @@
+hs_chrXsub_pe_unstr - dupRadar Int (duprate at low read counts): 2.90070146547683e-12 
+hs_chrXsub_pe_unstr - dupRadar Sl (progression of the duplication rate): 1
