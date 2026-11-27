@@ -56,16 +56,12 @@ Strandedness was checked with RSeQC `infer_experiment.py` (the references hold i
 Known differences between RustQC and the upstream tools on these datasets (each documented
 where it is handled):
 
-- **samtools stats, GC-depth section** (`GCD` lines): percentiles differ on
-  `hs_chrX_pe_unstr`, `hs_ribo_chr19_22_se_fwd` and `hs_ribo_chr20_se_fwd`; the section is
-  skipped in `SamtoolsStats` for every dataset.
-- **samtools stats, other lines**: on `hs_chrXsub_pe_unstr`, `COV [1-1]` is one higher than
-  samtools; on `sc_pe_rev`, `SN error rate` differs in the last printed digit. Both datasets mark
-  `samtools_stats: regression`.
-- **dupRadar intercept/slope without duplicates**: with no read marked duplicate the logistic fit
-  is degenerate; R stops at an intercept of ~2.9e-12, RustQC at ~1e-10. `DupRadar` accepts any
-  value below 1e-9 in that case. The dupMatrix itself is byte-identical on every
-  dataset with an upstream reference.
+- **dupRadar intercept/slope**: RustQC fits the logistic curve with its own solver and R with
+  `glm()`, so the values agree to ~2.6e-9 relative, not to the last digit; `DupRadar` compares them
+  at 1e-8 relative. With no read marked duplicate (every dataset but `hs_chr6_pe_rev`) the fit is
+  degenerate: the true intercept is 0, R stops at ~2.9e-12 and RustQC at ~1e-10, so an upstream
+  value below 1e-6 is compared at 1e-9 absolute instead (`ExactCompare.dupradarFitMatch`). The
+  dupMatrix itself is byte-identical on every dataset with an upstream reference.
 - **dupRadar on `hs_chr22_pe_fwd`**: upstream dupRadar exits with an error (6 genes), so the
   dataset marks `dupradar: upstream_error`.
 
@@ -173,8 +169,9 @@ from `tests/datasets.yml` (override with `RUSTQC_BASELINE_IMAGE`). It then compa
 - every file exactly, except plots (`*.png`, `*.svg`, `*.pdf`) and `CITATIONS.md`, and after
   dropping version/command-line header lines (featureCounts `# Program:`, the samtools stats
   header) and the Qualimap report's run timestamps. Qualimap junction motifs with equal
-  percentages are compared as a set, because RustQC lists them in a random order (a known RustQC
-  bug). The exclusions are listed in `tests/lib/checks/ReleaseRegression.groovy`;
+  percentages are compared as a set, because the baseline release (v0.2.1) lists them in a random
+  order; RustQC now sorts them by name (RustQC #204), so this can go once a release containing
+  that fix is the baseline. The exclusions are listed in `tests/lib/checks/ReleaseRegression.groovy`;
 - a file the baseline writes but the current run does not fails; a new file is only reported;
 - intentional changes since the release go in `release_regression.accepted_differences`
   (`{path: <glob under rustqc/>, reason: ..., datasets: [optional ids]}`): reported, not failed.

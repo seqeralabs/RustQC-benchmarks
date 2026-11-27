@@ -9,10 +9,11 @@
  *                    CITATIONS.md (lists the RustQC version)
  *   VOLATILE_LINES   lines dropped before comparing: version and command-line headers
  *   MOTIF_ROWS       Qualimap junction-motif rows, compared per group of tied
- *                    percentages (RustQC lists tied motifs in a random order)
+ *                    percentages (the baseline release lists tied motifs in a random order)
  *
- * Measured on hs_chr6_pe_rev, v0.2.1 vs main (6b66655): only CITATIONS.md and the dupRadar
- * density plot differ in bytes; every other file is identical.
+ * Measured on hs_chr6_pe_rev, v0.2.1 vs :dev (afc6e6f): besides CITATIONS.md and the plots, the
+ * TIN, featureCounts, dupRadar MultiQC, Qualimap and junction_saturation outputs differ (all
+ * listed under accepted_differences in tests/datasets.yml); every other file is identical.
  *
  * A file present in the baseline but missing from the current run fails the check. A file
  * only the current run writes (a new output) is reported but does not fail.
@@ -52,17 +53,16 @@ class ReleaseRegression {
     ].asImmutable()
 
     /**
-     * KNOWN ISSUE (RustQC): the Qualimap junction-motif list ("ACCT : 10.89%", in
-     * rnaseq_qc_results.txt and as table rows in qualimapReport.html) is non-deterministic.
-     * RustQC counts motifs in a std HashMap, whose iteration order is random per process, and
-     * then stable-sorts them by frequency only (src/rna/qualimap/output.rs and report.rs), so
-     * motifs with equal percentages come out in a different order on every run. Seen on
-     * sc_pe_rev, sc_se_rev, hs_chr22_pe_fwd and hs_ribo_chr19_22_se_fwd.
+     * The Qualimap junction-motif list ("ACCT : 10.89%", in rnaseq_qc_results.txt and as table
+     * rows in qualimapReport.html) is non-deterministic in the baseline release: v0.2.1 counted
+     * motifs in a std HashMap, whose iteration order is random per process, and stable-sorted
+     * them by frequency only, so motifs with equal percentages came out in a different order on
+     * every run. RustQC #204 sorts tied motifs by name; the baseline still does not.
      *
      * normaliseMotifs() compares each group of tied rows as a set (names sorted within the
      * group; percentages and group order still compared). The list stops at the top 11, so when
      * it is full the last tied group may be cut at a random member: its names are masked.
-     * Remove this once a RustQC release with the tie-breaking fix is both the baseline and :dev.
+     * Remove this once a RustQC release with the tie-breaking fix is the baseline.
      */
     static final Map<String, java.util.regex.Pattern> MOTIF_ROWS = [
         'qualimap/rnaseq_qc_results.txt': ~/^(\s+)([ACGTN]{4})( : )([\d.]+)(%)$/,

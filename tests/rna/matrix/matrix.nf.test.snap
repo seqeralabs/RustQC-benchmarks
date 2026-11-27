@@ -479,7 +479,7 @@
                         "SN\tpairs on different chromosomes:\t0",
                         "SN\tpercentage of properly paired reads (%):\t100.0"
                     ],
-                    "data_md5": "1d38a93ade49fefc13286a2cddb334d0",
+                    "data_md5": "76b53680ea40341eacf0a290cecd747b",
                     "rows": 9163
                 },
                 "read_distribution": [
@@ -635,7 +635,7 @@
                         "SN\tbases trimmed:\t0",
                         "SN\tbases duplicated:\t0",
                         "SN\tmismatches:\t1558\t# from NM fields",
-                        "SN\terror rate:\t8.805892e-03\t# mismatches / bases mapped (cigar)",
+                        "SN\terror rate:\t8.805891e-03\t# mismatches / bases mapped (cigar)",
                         "SN\taverage length:\t99",
                         "SN\taverage first fragment length:\t99",
                         "SN\taverage last fragment length:\t99",
@@ -651,7 +651,7 @@
                         "SN\tpairs on different chromosomes:\t0",
                         "SN\tpercentage of properly paired reads (%):\t100.0"
                     ],
-                    "data_md5": "8c48cc89825fc73a429e135c8ff358e2",
+                    "data_md5": "57326ee77e05445c5518a26a9d537a16",
                     "rows": 1407
                 },
                 "read_distribution": [
@@ -1187,7 +1187,7 @@
                         "SN\tpairs on different chromosomes:\t0",
                         "SN\tpercentage of properly paired reads (%):\t0.0"
                     ],
-                    "data_md5": "f1338a5497e221370e54400eb72b4e4c",
+                    "data_md5": "bd0ef0d7aaa4ddc410f6963152a54018",
                     "rows": 817
                 },
                 "read_distribution": [
@@ -1358,7 +1358,7 @@
                         "SN\tpairs on different chromosomes:\t0",
                         "SN\tpercentage of properly paired reads (%):\t100.0"
                     ],
-                    "data_md5": "a27cad8c26e31b9419147506a1110cdc",
+                    "data_md5": "10ed9662c24ad7338306862a14242ef6",
                     "rows": 9494
                 },
                 "read_distribution": [
@@ -1529,7 +1529,7 @@
                         "SN\tpairs on different chromosomes:\t0",
                         "SN\tpercentage of properly paired reads (%):\t0.0"
                     ],
-                    "data_md5": "98a287b5d5a117b01a1e3c8c2b9090df",
+                    "data_md5": "edbff82a85c564c4351616af1436eca4",
                     "rows": 1014
                 },
                 "read_distribution": [

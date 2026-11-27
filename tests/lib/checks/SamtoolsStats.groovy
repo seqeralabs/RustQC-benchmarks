@@ -9,20 +9,15 @@ class SamtoolsStats extends ToolCheck {
 
     Map<String, String> getReferences() { ['samtools/{sample}.stats': 'samtools/{sample}.stats'] }
 
-    // Measured on hs_chr6_pe_rev: every data line (CHK checksums, SN summary, all histograms)
-    // identical to samtools stats. Only '#' comment lines differ (version string, command
-    // line, section help text), so those are skipped and everything else must match exactly.
-    //
-    // KNOWN DISCREPANCY: the GC-depth section (GCD lines: depth percentiles per GC bin)
-    // differs from samtools on hs_chrX_pe_unstr, hs_ribo_chr19_22_se_fwd and
-    // hs_ribo_chr20_se_fwd (percentiles off by up to ~0.05, some GC percentiles by 0.09),
-    // while matching on the other datasets. It is skipped here so the rest of the file is
-    // still compared exactly; the release regression still covers it.
+    // Every data line (CHK checksums, SN summary, all histograms, the GC-depth section) identical
+    // to samtools stats 1.22.1 (RustQC #198). Only '#' comment lines differ (version string,
+    // command line, section help text), so those are skipped and everything else must match
+    // exactly, nothing trimmed.
     void crosscheck(Run run) {
-        CompareUtils.textMatch(
+        ExactCompare.exactMatch(
             run.lines(run.output(outputs[0])),
             run.referenceLines('samtools/{sample}.stats'),
-            ['#', 'GCD\t']
+            ['#']
         )
     }
 

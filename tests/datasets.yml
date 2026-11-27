@@ -57,6 +57,28 @@ release_regression:
     # RustQC #193 (exons of a gene are listed in Subread featureCounts' order)
     - path: featurecounts/{sample}.featureCounts.tsv
       reason: exons are listed in Subread featureCounts' order (RustQC #193)
+    # RustQC #198 (samtools stats follows samtools 1.22.1: coverage histogram, error rate, GC-depth
+    # percentiles and the quality-columns comment). Identical on hs_chr6_pe_rev and hs_chr22_pe_fwd.
+    - path: samtools/{sample}.stats
+      datasets:
+        [hs_chrXsub_pe_unstr, sc_pe_rev, sc_se_rev, hs_ribo_chr19_22_se_fwd, hs_chrX_pe_unstr, hs_ribo_chr20_se_fwd]
+      reason: samtools stats lines changed to match samtools 1.22.1 (RustQC #198)
+    # RustQC #201 (the pdf() call names the PDF by sample name only, as RSeQC does)
+    - path: rseqc/junction_saturation/{sample}.junctionSaturation_plot.r
+      reason: the pdf() line names the PDF by sample name only (RustQC #201)
+    # RustQC #203 (the MultiQC files are written as the nf-core dupradar module writes them)
+    - path: dupradar/{sample}_dup_intercept_mqc.txt
+      reason: MultiQC general-stats header written as the nf-core dupradar module does (RustQC #203)
+    - path: dupradar/{sample}_duprateExpDensCurve_mqc.txt
+      reason: MultiQC line-graph header and layout written as the nf-core dupradar module does (RustQC #203)
+    # RustQC #204 (Qualimap number formatting, read selection and 5'-3' bias)
+    - path: qualimap/rnaseq_qc_results.txt
+      reason: Qualimap 2.3 number formatting, read selection and 5'-3' bias (RustQC #204)
+    - path: qualimap/qualimapReport.html
+      reason: Qualimap 2.3 number formatting, read selection and 5'-3' bias (RustQC #204)
+    - path: qualimap/raw_data_qualimapReport/coverage_profile_along_genes_*.txt
+      datasets: [hs_chr22_pe_fwd]
+      reason: Qualimap 2.3 number formatting in the coverage profiles (RustQC #204)
 
 datasets:
   - id: hs_chr6_pe_rev
@@ -142,10 +164,7 @@ datasets:
       skip_dup_check: true
     references:
       dir: snapshots/rna/hs_chrXsub_pe_unstr
-    expect:
-      # KNOWN DISCREPANCY: RustQC's samtools stats coverage histogram counts one more base at
-      # depth 1 than samtools ('COV [1-1] 1 20944' vs 20943); every other line matches.
-      samtools_stats: regression
+    expect: {}
     tags: [pe, unstranded, ensembl, grch37, no_gene_records]
 
   - id: sc_pe_rev
@@ -170,10 +189,7 @@ datasets:
       skip_dup_check: true
     references:
       dir: snapshots/rna/sc_pe_rev
-    expect:
-      # KNOWN DISCREPANCY: RustQC's samtools stats 'SN error rate' differs in the last printed
-      # digit (8.805892e-03 vs samtools' 8.805891e-03); every other line matches.
-      samtools_stats: regression
+    expect: {}
     tags: [pe, reverse, ensembl, yeast, transgene, no_gene_records]
 
   - id: sc_se_rev
