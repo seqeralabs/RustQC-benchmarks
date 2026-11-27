@@ -10,11 +10,7 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": [
-                "bam",
-                "gtf",
-                "outdir"
-            ],
+            "required": ["bam", "gtf", "outdir"],
             "properties": {
                 "bam": {
                     "type": "string",
@@ -54,9 +50,7 @@
                     "type": "string",
                     "default": "rna",
                     "description": "Which benchmark suite to run.",
-                    "enum": [
-                        "rna"
-                    ]
+                    "enum": ["rna"]
                 },
                 "sample_id": {
                     "type": "string",
@@ -71,11 +65,7 @@
                     "type": "string",
                     "default": "unstranded",
                     "description": "Library strandedness.",
-                    "enum": [
-                        "unstranded",
-                        "forward",
-                        "reverse"
-                    ]
+                    "enum": ["unstranded", "forward", "reverse"]
                 },
                 "run_rustqc": {
                     "type": "boolean",
@@ -188,14 +178,7 @@
                     "default": "copy",
                     "description": "Method used to save pipeline results to output directory.",
                     "fa_icon": "fas fa-copy",
-                    "enum": [
-                        "symlink",
-                        "rellink",
-                        "link",
-                        "copy",
-                        "copyNoFollow",
-                        "move"
-                    ],
+                    "enum": ["symlink", "rellink", "link", "copy", "copyNoFollow", "move"],
                     "hidden": true
                 },
                 "monochrome_logs": {
@@ -225,10 +208,7 @@
                     "hidden": true
                 },
                 "help": {
-                    "type": [
-                        "boolean",
-                        "string"
-                    ],
+                    "type": ["boolean", "string"],
                     "description": "Display the help message."
                 },
                 "help_full": {
