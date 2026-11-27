@@ -31,6 +31,11 @@ workflow {
         // upstream tools -> comparison. Run on Seqera Platform before each RustQC release.
         FULLSIZE()
     } else {
+        // --bam is required here, but not with --fullsize (which aligns FASTQ files)
+        if (!params.bam) {
+            error("--bam is required (unless --fullsize is set)")
+        }
+
         //
         // Build input channels from params
         //
